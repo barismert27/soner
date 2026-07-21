@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Başyıldız Diş Stüdyosu Yönetim Paneli | Lab Kontrol Sistemi</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="icon" type="image/png" href="images/logo.png">
+</head>
+<body>
+
+  <!-- Sidebar Navigasyon -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="images/logo.png" alt="Başyıldız Diş Stüdyosu Logo" style="height: 30px; width: auto; vertical-align: middle; border-radius: 4px;"> <span>Başyıldız Diş Stüdyosu</span>
+    </div>
+    <div class="sidebar-menu">
+      <div class="menu-item active" data-target="view-dashboard">📊 Dashboard</div>
+      <div class="menu-item" data-target="view-jobs">🦷 İş Listesi</div>
+      <div class="menu-item" data-target="view-add-job">📝 Yeni İş Ekle</div>
+      <div class="menu-item" data-target="view-doctors">💼 Cari Hesaplar</div>
+      <div class="menu-item" data-target="view-payments">💰 Ödeme Geçmişi</div>
+      <div class="menu-item" data-target="view-gallery">🖼️ Galeri Yönetimi</div>
+      <div class="menu-item" id="theme-toggle">☀️ Aydınlık Mod</div>
+      <a href="index.html" class="menu-item" style="margin-top: auto; border-top: 1px solid var(--border-light); padding-top: 20px;">🏠 Ön Yüze Git</a>
+    </div>
+  </div>
+
+  <!-- Ana İçerik Alanı -->
+  <div class="main-wrapper">
+    
+    <!-- Üst Başlık Paneli -->
+    <div class="header-panel">
+      <div>
+        <h1 id="page-title">Yönetim Paneli</h1>
+        <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Laboratuvar süreçlerinizi baştan sona yönetin.</p>
+      </div>
+      <button class="btn btn-primary" onclick="switchView('view-add-job')">➕ Yeni İş Emri</button>
+    </div>
+
+    <!-- -------------------------------------------------- -->
+    <!-- VIEW 1: DASHBOARD -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-dashboard" class="view-section active">
+      <!-- İstatistik Kartları -->
+      <div class="stats-container">
+        <div class="stat-card">
+          <h3>Aktif İş Sayısı</h3>
+          <div class="value highlight" id="stats-active-jobs">0</div>
+          <div class="subtext">Süreçleri devam eden vakalar</div>
+        </div>
+        <div class="stat-card">
+          <h3>Toplam Borç (Alacaklar)</h3>
+          <div class="value" id="stats-total-debt">0.00 TL</div>
+          <div class="subtext">Kliniklerin toplam borç kaydı</div>
+        </div>
+        <div class="stat-card">
+          <h3>Toplam Tahsilat</h3>
+          <div class="value highlight" id="stats-total-paid" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">0.00 TL</div>
+          <div class="subtext">Bugüne kadar yapılan ödemeler</div>
+        </div>
+        <div class="stat-card">
+          <h3>Kalan Bakiye</h3>
+          <div class="value" id="stats-total-balance" style="background: linear-gradient(135deg, #ff9f43 0%, #ff6b6b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">0.00 TL</div>
+          <div class="subtext">Net bekleyen alacak bakiyesi</div>
+        </div>
+      </div>
+
+      <!-- Son Eklenen İşler Tablosu -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Son Eklenen İş Emri Talepleri</h2>
+          <button class="btn btn-secondary" onclick="switchView('view-jobs')">Tümünü Gör</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Klinik / Doktor</th>
+                <th>Hasta Adı</th>
+                <th>Giriş Tarihi</th>
+                <th>Teslim Tarihi</th>
+                <th>Durum</th>
+                <th>Tutar</th>
+              </tr>
+            </thead>
+            <tbody id="recent-jobs-table-body">
+              <!-- JS ile dolacak -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------- -->
+    <!-- VIEW 2: İŞ LİSTESİ (DATAGRID) -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-jobs" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Aktif ve Geçmiş Vakalar</h2>
+        </div>
+        
+        <!-- Arama ve Filtreleme Çubuğu -->
+        <div class="filter-bar">
+          <input type="text" id="filter-search" class="search-input" placeholder="Doktor, hasta adı veya sıra no ile ara...">
+          <select id="filter-doctor" class="select-input">
+            <option value="">Tüm Doktorlar</option>
+            <!-- Dinamik dolacak -->
+          </select>
+          <select id="filter-status" class="select-input">
+            <option value="">Tüm Durumlar</option>
+            <option value="Yeni">Yeni</option>
+            <option value="Metal Prova">Metal Prova</option>
+            <option value="1. Dentin Prova">1. Dentin Prova</option>
+            <option value="Dişli Mum Prova">Dişli Mum Prova</option>
+            <option value="Bitim">Bitim</option>
+            <option value="Teslim Edildi">Teslim Edildi</option>
+          </select>
+          <button class="btn btn-secondary" onclick="clearJobFilters()">Temizle</button>
+        </div>
+
+        <!-- Ana DataGrid Tablosu -->
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Klinik / Doktor</th>
+                <th>Hasta Adı</th>
+                <th>Giriş Tarihi</th>
+                <th>Teslim Tarihi</th>
+                <th>Durum</th>
+                <th>Tutar</th>
+                <th>Reçete (PDF)</th>
+                <th>İşlemler</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-table-body">
+              <!-- JS ile dolacak -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------- -->
+    <!-- VIEW 3: YENİ İŞ EKLEME FORMU -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-add-job" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Dijital İş Emri & Hasta Kartı Kaydı</h2>
+        </div>
+        
+        <form id="add-job-form" enctype="multipart/form-data">
+          <div class="form-grid">
+            
+            <!-- Hekim ve Hasta Bilgileri -->
+            <div class="form-group">
+              <label class="form-label" for="job-doctor-input">Hekim / Klinik Seçin veya Ekleyin *</label>
+              <input type="text" id="job-doctor-input" class="form-control-admin" placeholder="Dr. Adı veya Klinik Adı giriniz..." list="doctors-list-datalist" required>
+              <datalist id="doctors-list-datalist">
+                <!-- JS ile dolacak -->
+              </datalist>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="job-patient-name">Hasta Adı Soyadı *</label>
+              <input type="text" id="job-patient-name" class="form-control-admin" placeholder="Hasta adını giriniz..." required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-seq-no">Sıra No / Takip Kodu</label>
+              <input type="text" id="job-seq-no" class="form-control-admin" placeholder="Örn: VAKA-102">
+            </div>
+
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label class="form-label" for="job-patient-age">Hastanın Yaşı</label>
+                <input type="number" id="job-patient-age" class="form-control-admin" min="0" max="120">
+              </div>
+              <div>
+                <label class="form-label" for="job-patient-gender">Cinsiyet</label>
+                <select id="job-patient-gender" class="form-control-admin">
+                  <option value="">Belirtilmedi</option>
+                  <option value="Kadın">Kadın</option>
+                  <option value="Erkek">Erkek</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-entry-date">Giriş Tarihi *</label>
+              <input type="date" id="job-entry-date" class="form-control-admin" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-delivery-date">Planlanan Teslim Tarihi</label>
+              <input type="date" id="job-delivery-date" class="form-control-admin">
+            </div>
+
+            <!-- Diş Estetik Detayları -->
+            <div class="form-group">
+              <label class="form-label" for="job-tooth-shape">Önerilen Diş Formu</label>
+              <select id="job-tooth-shape" class="form-control-admin">
+                <option value="">Seçiniz...</option>
+                <option value="Kare">Kare</option>
+                <option value="Yuvarlak">Yuvarlak</option>
+                <option value="Üçgen">Üçgen</option>
+                <option value="Kare-Yuvarlak">Kare-Yuvarlak</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-tooth-color">Diş Rengi (Vita Skalası)</label>
+              <input type="text" id="job-tooth-color" class="form-control-admin" placeholder="Örn: A1, A2, B1, Bleach vb.">
+            </div>
+
+            <!-- FDI ÇENE DİŞ ŞEMASI (Tooth Chart) -->
+            <div class="form-group-full">
+              <label class="form-label">İşlem Yapılacak Dişleri Seçin (FDI Çene Şeması)</label>
+              <div class="tooth-chart-wrapper">
+                <div class="tooth-arch">
+                  <!-- ÜST ÇENE ROW -->
+                  <div class="tooth-row" id="upper-teeth-row">
+                    <!-- Sağ Üst: 18'den 11'e -->
+                    <div class="tooth-item" data-tooth="18">18</div>
+                    <div class="tooth-item" data-tooth="17">17</div>
+                    <div class="tooth-item" data-tooth="16">16</div>
+                    <div class="tooth-item" data-tooth="15">15</div>
+                    <div class="tooth-item" data-tooth="14">14</div>
+                    <div class="tooth-item" data-tooth="13">13</div>
+                    <div class="tooth-item" data-tooth="12">12</div>
+                    <div class="tooth-item" data-tooth="11">11</div>
+                    
+                    <div class="tooth-divider"></div>
+                    
+                    <!-- Sol Üst: 21'den 28'e -->
+                    <div class="tooth-item" data-tooth="21">21</div>
+                    <div class="tooth-item" data-tooth="22">22</div>
+                    <div class="tooth-item" data-tooth="23">23</div>
+                    <div class="tooth-item" data-tooth="24">24</div>
+                    <div class="tooth-item" data-tooth="25">25</div>
+                    <div class="tooth-item" data-tooth="26">26</div>
+                    <div class="tooth-item" data-tooth="27">27</div>
+                    <div class="tooth-item" data-tooth="28">28</div>
+                  </div>
+                  
+                  <!-- ALT ÇENE ROW -->
+                  <div class="tooth-row" id="lower-teeth-row">
+                    <!-- Sağ Alt: 48'den 41'e -->
+                    <div class="tooth-item" data-tooth="48">48</div>
+                    <div class="tooth-item" data-tooth="47">47</div>
+                    <div class="tooth-item" data-tooth="46">46</div>
+                    <div class="tooth-item" data-tooth="45">45</div>
+                    <div class="tooth-item" data-tooth="44">44</div>
+                    <div class="tooth-item" data-tooth="43">43</div>
+                    <div class="tooth-item" data-tooth="42">42</div>
+                    <div class="tooth-item" data-tooth="41">41</div>
+                    
+                    <div class="tooth-divider"></div>
+                    
+                    <!-- Sol Alt: 31'den 38'e -->
+                    <div class="tooth-item" data-tooth="31">31</div>
+                    <div class="tooth-item" data-tooth="32">32</div>
+                    <div class="tooth-item" data-tooth="33">33</div>
+                    <div class="tooth-item" data-tooth="34">34</div>
+                    <div class="tooth-item" data-tooth="35">35</div>
+                    <div class="tooth-item" data-tooth="36">36</div>
+                    <div class="tooth-item" data-tooth="37">37</div>
+                    <div class="tooth-item" data-tooth="38">38</div>
+                  </div>
+                </div>
+              </div>
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: -10px; margin-bottom: 10px;">Seçmek veya seçimi iptal etmek için diş numaralarının üzerine tıklayın.</p>
+            </div>
+
+            <!-- İŞLEM TÜRLERİ (Checkbox Grid) -->
+            <div class="form-group-full">
+              <label class="form-label">Uygulanacak İşlem Türleri (Çoklu Seçim)</label>
+              <div class="treatment-grid" id="treatment-checkbox-grid">
+                <!-- Checkbox listesi statik olarak tüm tedavilerle dolduruluyor -->
+                <label class="treatment-checkbox"><input type="checkbox" value="Porselen"> Porselen</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Zirkon Cad. Cam"> Zirkon Cad. Cam</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Monolitik Zirkon"> Monolitik Zirkon</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="İskelet"> İskelet</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Hassas Bağ"> Hassas Bağ</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="İmplant"> İmplant</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Custom Abutment"> Custom Abutment</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Lamine"> Lamine</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Total"> Total</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Şahsi Kaşık"> Şahsi Kaşık</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="IPS E-Max Ceram"> IPS E-Max Ceram</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Lazer Sintering"> Lazer Sintering</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Wax-Up"> Wax-Up</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Parsiyel"> Parsiyel</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Gece Plağı"> Gece Plağı</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Inlay/Onlay"> Inlay/Onlay</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Post Core"> Post Core</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Toronto"> Toronto</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Dolder Bar"> Dolder Bar</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Hibrit Protez"> Hibrit Protez</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Pivo Cap"> Pivo Cap</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Geçici Kron"> Geçici Kron</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Maryland"> Maryland</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Teleskop"> Teleskop</label>
+                <label class="treatment-checkbox"><input type="checkbox" value="Yer Tutucu"> Yer Tutucu</label>
+              </div>
+            </div>
+
+            <!-- PROVA AŞAMALARI -->
+            <div class="form-group-full">
+              <label class="form-label">Randevu ve Prova Aşamaları (Tarih ve Saat Seçimi)</label>
+              <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 12px;" for="stage-metal">Metal Prova</label>
+                  <input type="datetime-local" id="stage-metal" class="form-control-admin">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 12px;" for="stage-dentin">1. Dentin Prova</label>
+                  <input type="datetime-local" id="stage-dentin" class="form-control-admin">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 12px;" for="stage-wax">Dişli Mum Prova</label>
+                  <input type="datetime-local" id="stage-wax" class="form-control-admin">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 12px;" for="stage-finish">Bitim Randevusu</label>
+                  <input type="datetime-local" id="stage-finish" class="form-control-admin">
+                </div>
+              </div>
+            </div>
+
+            <!-- EKSTRALAR VE DOSYA YÜKLEME -->
+            <div class="form-group-full">
+              <label class="form-label" for="job-notes">Özel Notlar</label>
+              <textarea id="job-notes" class="form-control-admin" style="height: 100px; resize: vertical;" placeholder="Örn: Geçici yapılacak, aşırı hassas vaka..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-pdf">Hekim Reçetesi / 3D STL Raporu (Sadece PDF) *</label>
+              <input type="file" id="job-pdf" class="form-control-admin" accept="application/pdf" style="padding: 8px;">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="job-total-price">Toplam İş Ücreti (TL) *</label>
+              <input type="number" id="job-total-price" class="form-control-admin" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+
+          </div>
+
+          <div style="margin-top: 30px; display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="switchView('view-dashboard')">İptal</button>
+            <button type="submit" class="btn btn-primary">İş Emrini Kaydet ve Cariyi Borçlandır</button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------- -->
+    <!-- VIEW 4: CARİ HESAPLAR / DOKTORLAR -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-doctors" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Klinikler ve Cari Hesaplar</h2>
+          <button class="btn btn-primary" onclick="showAddDoctorModal()">➕ Yeni Doktor/Klinik</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>İsim / Klinik Adı</th>
+                <th>Telefon</th>
+                <th>Toplam İş Borcu</th>
+                <th>Toplam Ödeme</th>
+                <th>Kalan Bakiye</th>
+                <th>İşlemler</th>
+              </tr>
+            </thead>
+            <tbody id="doctors-table-body">
+              <!-- JS ile dolacak -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------- -->
+    <!-- VIEW 5: ÖDEME GEÇMİŞİ -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-payments" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Ödeme ve Cari Tahsilat Kayıtları</h2>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Ödeme ID</th>
+                <th>Doktor / Klinik</th>
+                <th>Tutar</th>
+                <th>Ödeme Tarihi</th>
+                <th>Not</th>
+                <th>İşlemler</th>
+              </tr>
+            </thead>
+            <tbody id="payments-table-body">
+              <!-- JS ile dolacak -->
+            </tbody>
+          </table>
+        </div>
+    </div>
+  </div>
+
+  <!-- -------------------------------------------------- -->
+  <!-- VIEW 6: GALERİ YÖNETİMİ -->
+    <!-- -------------------------------------------------- -->
+    <div id="view-gallery" class="view-section">
+      <div class="form-grid">
+        <!-- Sol: Yeni Galeri Vaka Formu -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Yeni Galeri Vakası Ekle</h2>
+          </div>
+          <form id="add-gallery-form" enctype="multipart/form-data">
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="gallery-title">Vaka Başlığı *</label>
+              <input type="text" id="gallery-title" class="form-control-admin" placeholder="Örn: Ön Bölge Lamine Çalışması" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="gallery-category">Kategori *</label>
+              <select id="gallery-category" class="form-control-admin" required>
+                <option value="zirconium">Zirkonyum</option>
+                <option value="emax">E-Max</option>
+                <option value="implant">İmplant Üstü</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="gallery-before-img">Öncesi Fotoğrafı *</label>
+              <input type="file" id="gallery-before-img" class="form-control-admin" accept="image/*" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="gallery-after-img">Sonrası Fotoğrafı *</label>
+              <input type="file" id="gallery-after-img" class="form-control-admin" accept="image/*" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+              <label class="form-label" for="gallery-description">Açıklama / Vaka Notları</label>
+              <textarea id="gallery-description" class="form-control-admin" placeholder="Vaka hakkında detaylı bilgiler..." style="height: 100px;"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Galeriye Ekle</button>
+          </form>
+        </div>
+
+        <!-- Sağ: Galeri Listesi -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Mevcut Galeri Vakaları</h2>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Başlık</th>
+                  <th>Kategori</th>
+                  <th>Görseller</th>
+                  <th style="width: 80px; text-align: center;">İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="gallery-table-body">
+                <!-- JS ile dolacak -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================================================== -->
+  <!-- MODAL: DOKTOR DETAY / FİNANS DÜŞÜMÜ -->
+  <!-- ================================================== -->
+  <div class="modal-overlay" id="doctor-detail-modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 id="doc-modal-title">Cari Hesap Detayı</h3>
+        <span class="modal-close" onclick="closeModal('doctor-detail-modal')">&times;</span>
+      </div>
+      
+      <!-- Finansal Özet Kartları -->
+      <div class="stats-container" style="margin-bottom: 24px;">
+        <div class="stat-card" style="padding: 16px;">
+          <h3>Toplam Borç</h3>
+          <div class="value" id="doc-modal-total-debt" style="font-size: 22px;">0.00 TL</div>
+        </div>
+        <div class="stat-card" style="padding: 16px;">
+          <h3>Ödenen Tutar</h3>
+          <div class="value" id="doc-modal-total-paid" style="font-size: 22px; color: var(--success);">0.00 TL</div>
+        </div>
+        <div class="stat-card" style="padding: 16px;">
+          <h3>Kalan Borç</h3>
+          <div class="value" id="doc-modal-balance" style="font-size: 22px; color: var(--accent);">0.00 TL</div>
+        </div>
+      </div>
+
+      <div class="financial-panel">
+        <!-- Sol: Ödeme Al Formu -->
+        <div>
+          <h4 style="margin-bottom: 16px;">Ödeme Ekle (Bakiye Düşümü)</h4>
+          <form id="record-payment-form">
+            <input type="hidden" id="payment-doctor-id">
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="payment-amount">Ödenen Tutar (TL) *</label>
+              <input type="number" id="payment-amount" class="form-control-admin" placeholder="0.00" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="payment-date">Ödeme Tarihi *</label>
+              <input type="date" id="payment-date" class="form-control-admin" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label" for="payment-notes">Ödeme Detayı / Not</label>
+              <input type="text" id="payment-notes" class="form-control-admin" placeholder="Örn: Havale, Nakit, Kredi Kartı...">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Ödemeyi Kaydet ve Bakiyeyi Düş</button>
+          </form>
+        </div>
+
+        <!-- Sağ: Ödeme Geçmişi Listesi -->
+        <div>
+          <h4 style="margin-bottom: 16px;">Ödeme Geçmişi (One-to-Many)</h4>
+          <div class="payment-history-list" id="doc-payment-history-list">
+            <!-- Dinamik doldurulacak -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================== -->
+  <!-- MODAL: İŞ DETAYI & DOKTOR REÇETESİ (PDF GÖRÜNTÜLEYİCİ) -->
+  <!-- ================================================== -->
+  <div class="modal-overlay" id="job-detail-modal">
+    <div class="modal-content" style="max-width: 950px;">
+      <div class="modal-header">
+        <h3 id="job-modal-title">İş Emri Detay Kartı</h3>
+        <span class="modal-close" onclick="closeModal('job-detail-modal')">&times;</span>
+      </div>
+
+      <div class="detail-grid">
+        <!-- Sol: Detay Verileri ve PDF Görüntüleyici -->
+        <div>
+          <div class="form-grid" style="margin-bottom: 20px;">
+            <div class="detail-info-block">
+              <div class="detail-info-title">Hekim / Klinik</div>
+              <div class="detail-info-value" id="job-detail-doctor">Ahmet Yılmaz</div>
+            </div>
+            <div class="detail-info-block">
+              <div class="detail-info-title">Hasta Adı</div>
+              <div class="detail-info-value" id="job-detail-patient">Mehmet Kaya</div>
+            </div>
+            <div class="detail-info-block">
+              <div class="detail-info-title">Sıra No</div>
+              <div class="detail-info-value" id="job-detail-seq">S-109</div>
+            </div>
+            <div class="detail-info-block">
+              <div class="detail-info-title">Giriş / Teslim Tarihleri</div>
+              <div class="detail-info-value" id="job-detail-dates">12.05.2026 - 18.05.2026</div>
+            </div>
+            <div class="detail-info-block">
+              <div class="detail-info-title">Yaş / Cinsiyet</div>
+              <div class="detail-info-value" id="job-detail-demographics">42 Yaş, Erkek</div>
+            </div>
+            <div class="detail-info-block">
+              <div class="detail-info-title">Form / Skala Rengi</div>
+              <div class="detail-info-value" id="job-detail-esthetics">Kare - A1</div>
+            </div>
+            <div class="detail-info-block" class="form-group-full">
+              <div class="detail-info-title">Seçili Dişler (FDI)</div>
+              <div class="detail-info-value" id="job-detail-teeth" style="font-weight: 700; color: var(--primary);">11, 12, 21, 22</div>
+            </div>
+            <div class="detail-info-block" class="form-group-full">
+              <div class="detail-info-title">İşlem Türleri</div>
+              <div class="detail-info-value" id="job-detail-treatments">Zirkon Cad. Cam, Lamine</div>
+            </div>
+            <div class="detail-info-block" class="form-group-full">
+              <div class="detail-info-title">Özel Notlar</div>
+              <div class="detail-info-value" id="job-detail-notes" style="font-style: italic; color: var(--text-muted);">Yok</div>
+            </div>
+          </div>
+
+          <!-- PDF Görüntüleme Kutusu -->
+          <h4 style="margin-bottom: 12px; font-size: 14px;">Doktor Reçetesi (PDF)</h4>
+          <div id="job-detail-pdf-container">
+            <!-- Iframe dynamically loaded here -->
+          </div>
+        </div>
+
+        <!-- Sağ: Durum Güncelleme ve Prova Süreçleri -->
+        <div style="border-left: 1px solid var(--border-light); padding-left: 24px;">
+          <h4 style="margin-bottom: 16px;">Süreç & Prova Yönetimi</h4>
+          
+          <form id="update-job-process-form">
+            <input type="hidden" id="update-job-id">
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label" for="update-status">İşin Güncel Durumu</label>
+              <select id="update-status" class="form-control-admin">
+                <option value="Yeni">Yeni</option>
+                <option value="Metal Prova">Metal Prova</option>
+                <option value="1. Dentin Prova">1. Dentin Prova</option>
+                <option value="Dişli Mum Prova">Dişli Mum Prova</option>
+                <option value="Bitim">Bitim</option>
+                <option value="Teslim Edildi">Teslim Edildi</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-label" for="update-price">Toplam Ücret (TL)</label>
+              <input type="number" id="update-price" class="form-control-admin" step="0.01" required>
+            </div>
+
+            <h5 style="margin-bottom: 12px; font-size: 13px; color: var(--text-muted);">Aşama Randevuları</h5>
+            
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-size: 11px;">Metal Prova</label>
+              <input type="datetime-local" id="update-stage-metal" class="form-control-admin">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-size: 11px;">1. Dentin Prova</label>
+              <input type="datetime-local" id="update-stage-dentin" class="form-control-admin">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-size: 11px;">Dişli Mum Prova</label>
+              <input type="datetime-local" id="update-stage-wax" class="form-control-admin">
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label" style="font-size: 11px;">Bitim Tarihi</label>
+              <input type="datetime-local" id="update-stage-finish" class="form-control-admin">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">İş Emrini Güncelle</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================== -->
+  <!-- MODAL: YENİ DOKTOR EKLEME -->
+  <!-- ================================================== -->
+  <div class="modal-overlay" id="add-doctor-modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Yeni Doktor / Klinik Kaydı</h3>
+        <span class="modal-close" onclick="closeModal('add-doctor-modal')">&times;</span>
+      </div>
+      <form id="add-doctor-form">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="new-doc-name">Hekim / Klinik Adı *</label>
+          <input type="text" id="new-doc-name" class="form-control-admin" placeholder="Dr. Ahmet Yılmaz" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="new-doc-phone">Telefon Numarası</label>
+          <input type="tel" id="new-doc-phone" class="form-control-admin" placeholder="Örn: +90 532 555 55 55">
+        </div>
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label class="form-label" for="new-doc-email">E-Posta Adresi</label>
+          <input type="email" id="new-doc-email" class="form-control-admin" placeholder="Örn: name@klinik.com">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Cari Hesabı Kaydet</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
