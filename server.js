@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const { initDatabase, dbRun, dbAll, dbGet } = require('./database');
+const { initDatabase, dbRun, dbAll, dbGet, dbTransaction } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,7 +96,7 @@ app.post('/api/doctors', async (req, res) => {
     );
     res.status(201).json({ success: true, id: result.id, message: 'Doktor/Klinik kaydı başarıyla oluşturuldu.' });
   } catch (error) {
-    if (error.message.includes('UNIQUE')) {
+    if (error.message.includes('Duplicate') || error.message.includes('UNIQUE')) {
       res.status(400).json({ success: false, message: 'Bu isimde bir doktor/klinik zaten kayıtlı.' });
     } else {
       res.status(500).json({ success: false, message: error.message });
@@ -138,7 +138,7 @@ app.get('/api/jobs', async (req, res) => {
     }
     if (search) {
       query += ' AND (jobs.patient_name LIKE ? OR doctors.name LIKE ? OR jobs.sequence_no LIKE ?)';
-      const searchParam = `%${search}%`;
+      const searchParam = \`%\${search}%\`;
       params.push(searchParam, searchParam, searchParam);
     }
 
@@ -201,78 +201,73 @@ app.post('/api/jobs', upload.single('pdf'), async (req, res) => {
 
     total_price = parseFloat(total_price) || 0;
     patient_age = parseInt(patient_age) || null;
-    const pdf_path = req.file ? `/uploads/${req.file.filename}` : null;
+    const pdf_path = req.file ? \`/uploads/\${req.file.filename}\` : null;
 
-    // Transaction Başlat
-    await dbRun('BEGIN TRANSACTION;');
+    const { jobId } = await dbTransaction(async (tx) => {
+      let finalDoctorId = doctor_id;
 
-    let finalDoctorId = doctor_id;
-
-    // Doktor id gönderilmemiş ama isim gönderilmişse bul veya ekle
-    if (!finalDoctorId && doctor_name) {
-      const docNameClean = doctor_name.trim();
-      let doctor = await dbGet('SELECT id FROM doctors WHERE name = ?', [docNameClean]);
-      if (!doctor) {
-        const result = await dbRun('INSERT INTO doctors (name) VALUES (?)', [docNameClean]);
-        finalDoctorId = result.id;
-      } else {
-        finalDoctorId = doctor.id;
+      if (!finalDoctorId && doctor_name) {
+        const docNameClean = doctor_name.trim();
+        let doctor = await tx.txGet('SELECT id FROM doctors WHERE name = ?', [docNameClean]);
+        if (!doctor) {
+          const result = await tx.txRun('INSERT INTO doctors (name) VALUES (?)', [docNameClean]);
+          finalDoctorId = result.id;
+        } else {
+          finalDoctorId = doctor.id;
+        }
       }
-    }
 
-    if (!finalDoctorId) {
-      throw new Error('Geçerli bir Doktor veya Klinik seçilmelidir.');
-    }
+      if (!finalDoctorId) {
+        throw new Error('Geçerli bir Doktor veya Klinik seçilmelidir.');
+      }
 
-    // İş kaydı at
-    const jobResult = await dbRun(`
-      INSERT INTO jobs (
-        doctor_id, patient_name, sequence_no, entry_date, delivery_date,
-        patient_age, patient_gender, tooth_shape, tooth_color, selected_teeth,
-        treatment_types, metal_trial_date, dentin_trial_date, wax_trial_date,
-        finish_trial_date, status, notes, pdf_path, total_price
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      finalDoctorId,
-      patient_name.trim(),
-      sequence_no || null,
-      entry_date || new Date().toISOString().split('T')[0],
-      delivery_date || null,
-      patient_age,
-      patient_gender || null,
-      tooth_shape || null,
-      tooth_color || null,
-      selected_teeth || '',
-      treatment_types || '',
-      metal_trial_date || null,
-      dentin_trial_date || null,
-      wax_trial_date || null,
-      finish_trial_date || null,
-      status || 'Yeni',
-      notes || null,
-      pdf_path,
-      total_price
-    ]);
+      const jobResult = await tx.txRun(`
+        INSERT INTO jobs (
+          doctor_id, patient_name, sequence_no, entry_date, delivery_date,
+          patient_age, patient_gender, tooth_shape, tooth_color, selected_teeth,
+          treatment_types, metal_trial_date, dentin_trial_date, wax_trial_date,
+          finish_trial_date, status, notes, pdf_path, total_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        finalDoctorId,
+        patient_name.trim(),
+        sequence_no || null,
+        entry_date || new Date().toISOString().split('T')[0],
+        delivery_date || null,
+        patient_age,
+        patient_gender || null,
+        tooth_shape || null,
+        tooth_color || null,
+        selected_teeth || '',
+        treatment_types || '',
+        metal_trial_date || null,
+        dentin_trial_date || null,
+        wax_trial_date || null,
+        finish_trial_date || null,
+        status || 'Yeni',
+        notes || null,
+        pdf_path,
+        total_price
+      ]);
 
-    // Cari hesaba borcu ekle ve kalan bakiyeyi güncelle
-    await dbRun(`
-      UPDATE doctors 
-      SET total_debt = total_debt + ?, 
-          balance = balance + ?
-      WHERE id = ?
-    `, [total_price, total_price, finalDoctorId]);
+      await tx.txRun(`
+        UPDATE doctors 
+        SET total_debt = total_debt + ?, 
+            balance = balance + ?
+        WHERE id = ?
+      `, [total_price, total_price, finalDoctorId]);
 
-    await dbRun('COMMIT;');
+      return { jobId: jobResult.id };
+    });
 
     res.status(201).json({
       success: true,
       message: 'İş emri başarıyla oluşturuldu ve doktor cari hesabına yansıtıldı.',
-      jobId: jobResult.id,
+      jobId: jobId,
       pdf_path
     });
 
   } catch (error) {
-    await dbRun('ROLLBACK;').catch(() => {});
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -308,54 +303,51 @@ app.put('/api/jobs/:id', upload.single('pdf'), async (req, res) => {
 
     const newPrice = total_price !== undefined ? parseFloat(total_price) : existingJob.total_price;
     const priceDiff = newPrice - existingJob.total_price;
-    const newPdfPath = req.file ? `/uploads/${req.file.filename}` : existingJob.pdf_path;
+    const newPdfPath = req.file ? \`/uploads/\${req.file.filename}\` : existingJob.pdf_path;
 
-    await dbRun('BEGIN TRANSACTION;');
-
-    await dbRun(`
-      UPDATE jobs SET
-        patient_name = ?, sequence_no = ?, entry_date = ?, delivery_date = ?,
-        patient_age = ?, patient_gender = ?, tooth_shape = ?, tooth_color = ?, selected_teeth = ?,
-        treatment_types = ?, metal_trial_date = ?, dentin_trial_date = ?, wax_trial_date = ?,
-        finish_trial_date = ?, status = ?, notes = ?, pdf_path = ?, total_price = ?
-      WHERE id = ?
-    `, [
-      patient_name !== undefined ? patient_name.trim() : existingJob.patient_name,
-      sequence_no !== undefined ? sequence_no : existingJob.sequence_no,
-      entry_date !== undefined ? entry_date : existingJob.entry_date,
-      delivery_date !== undefined ? delivery_date : existingJob.delivery_date,
-      patient_age !== undefined ? (parseInt(patient_age) || null) : existingJob.patient_age,
-      patient_gender !== undefined ? patient_gender : existingJob.patient_gender,
-      tooth_shape !== undefined ? tooth_shape : existingJob.tooth_shape,
-      tooth_color !== undefined ? tooth_color : existingJob.tooth_color,
-      selected_teeth !== undefined ? selected_teeth : existingJob.selected_teeth,
-      treatment_types !== undefined ? treatment_types : existingJob.treatment_types,
-      metal_trial_date !== undefined ? metal_trial_date : existingJob.metal_trial_date,
-      dentin_trial_date !== undefined ? dentin_trial_date : existingJob.dentin_trial_date,
-      wax_trial_date !== undefined ? wax_trial_date : existingJob.wax_trial_date,
-      finish_trial_date !== undefined ? finish_trial_date : existingJob.finish_trial_date,
-      status !== undefined ? status : existingJob.status,
-      notes !== undefined ? notes : existingJob.notes,
-      newPdfPath,
-      newPrice,
-      jobId
-    ]);
-
-    // Fiyat değiştiyse, doktorun borç ve bakiye bilgisini güncelle
-    if (priceDiff !== 0) {
-      await dbRun(`
-        UPDATE doctors
-        SET total_debt = total_debt + ?,
-            balance = balance + ?
+    await dbTransaction(async (tx) => {
+      await tx.txRun(`
+        UPDATE jobs SET
+          patient_name = ?, sequence_no = ?, entry_date = ?, delivery_date = ?,
+          patient_age = ?, patient_gender = ?, tooth_shape = ?, tooth_color = ?, selected_teeth = ?,
+          treatment_types = ?, metal_trial_date = ?, dentin_trial_date = ?, wax_trial_date = ?,
+          finish_trial_date = ?, status = ?, notes = ?, pdf_path = ?, total_price = ?
         WHERE id = ?
-      `, [priceDiff, priceDiff, existingJob.doctor_id]);
-    }
+      `, [
+        patient_name !== undefined ? patient_name.trim() : existingJob.patient_name,
+        sequence_no !== undefined ? sequence_no : existingJob.sequence_no,
+        entry_date !== undefined ? entry_date : existingJob.entry_date,
+        delivery_date !== undefined ? delivery_date : existingJob.delivery_date,
+        patient_age !== undefined ? (parseInt(patient_age) || null) : existingJob.patient_age,
+        patient_gender !== undefined ? patient_gender : existingJob.patient_gender,
+        tooth_shape !== undefined ? tooth_shape : existingJob.tooth_shape,
+        tooth_color !== undefined ? tooth_color : existingJob.tooth_color,
+        selected_teeth !== undefined ? selected_teeth : existingJob.selected_teeth,
+        treatment_types !== undefined ? treatment_types : existingJob.treatment_types,
+        metal_trial_date !== undefined ? metal_trial_date : existingJob.metal_trial_date,
+        dentin_trial_date !== undefined ? dentin_trial_date : existingJob.dentin_trial_date,
+        wax_trial_date !== undefined ? wax_trial_date : existingJob.wax_trial_date,
+        finish_trial_date !== undefined ? finish_trial_date : existingJob.finish_trial_date,
+        status !== undefined ? status : existingJob.status,
+        notes !== undefined ? notes : existingJob.notes,
+        newPdfPath,
+        newPrice,
+        jobId
+      ]);
 
-    await dbRun('COMMIT;');
+      if (priceDiff !== 0) {
+        await tx.txRun(`
+          UPDATE doctors
+          SET total_debt = total_debt + ?,
+              balance = balance + ?
+          WHERE id = ?
+        `, [priceDiff, priceDiff, existingJob.doctor_id]);
+      }
+    });
+
     res.json({ success: true, message: 'İş başarıyla güncellendi.' });
 
   } catch (error) {
-    await dbRun('ROLLBACK;').catch(() => {});
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -369,24 +361,19 @@ app.delete('/api/jobs/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Silinecek iş bulunamadı.' });
     }
 
-    await dbRun('BEGIN TRANSACTION;');
+    await dbTransaction(async (tx) => {
+      await tx.txRun('DELETE FROM jobs WHERE id = ?', [jobId]);
+      await tx.txRun(`
+        UPDATE doctors
+        SET total_debt = total_debt - ?,
+            balance = balance - ?
+        WHERE id = ?
+      `, [job.total_price, job.total_price, job.doctor_id]);
+    });
 
-    // İşi sil
-    await dbRun('DELETE FROM jobs WHERE id = ?', [jobId]);
-
-    // Doktor borcunu düş
-    await dbRun(`
-      UPDATE doctors
-      SET total_debt = total_debt - ?,
-          balance = balance - ?
-      WHERE id = ?
-    `, [job.total_price, job.total_price, job.doctor_id]);
-
-    await dbRun('COMMIT;');
     res.json({ success: true, message: 'İş başarıyla silindi, cari hesap bakiye düzeltmesi yapıldı.' });
 
   } catch (error) {
-    await dbRun('ROLLBACK;').catch(() => {});
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -423,33 +410,29 @@ app.post('/api/payments', async (req, res) => {
       return res.status(400).json({ success: false, message: 'İlgili Doktor/Klinik seçilmelidir.' });
     }
 
-    await dbRun('BEGIN TRANSACTION;');
+    await dbTransaction(async (tx) => {
+      await tx.txRun(`
+        INSERT INTO payments (doctor_id, job_id, amount, payment_date, notes)
+        VALUES (?, ?, ?, ?, ?)
+      `, [
+        doctor_id,
+        job_id || null,
+        amount,
+        payment_date || new Date().toISOString().split('T')[0],
+        notes || null
+      ]);
 
-    // Ödeme kaydını ekle
-    await dbRun(`
-      INSERT INTO payments (doctor_id, job_id, amount, payment_date, notes)
-      VALUES (?, ?, ?, ?, ?)
-    `, [
-      doctor_id,
-      job_id || null,
-      amount,
-      payment_date || new Date().toISOString().split('T')[0],
-      notes || null
-    ]);
+      await tx.txRun(`
+        UPDATE doctors
+        SET total_paid = total_paid + ?,
+            balance = balance - ?
+        WHERE id = ?
+      `, [amount, amount, doctor_id]);
+    });
 
-    // Doktor cari hesabında ödenen tutarı arttır ve kalan borcu (bakiye) düşür
-    await dbRun(`
-      UPDATE doctors
-      SET total_paid = total_paid + ?,
-          balance = balance - ?
-      WHERE id = ?
-    `, [amount, amount, doctor_id]);
-
-    await dbRun('COMMIT;');
     res.status(201).json({ success: true, message: 'Ödeme başarıyla işlendi, borç bakiyesi düşüldü.' });
 
   } catch (error) {
-    await dbRun('ROLLBACK;').catch(() => {});
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -463,24 +446,19 @@ app.delete('/api/payments/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Silinecek ödeme kaydı bulunamadı.' });
     }
 
-    await dbRun('BEGIN TRANSACTION;');
+    await dbTransaction(async (tx) => {
+      await tx.txRun('DELETE FROM payments WHERE id = ?', [paymentId]);
+      await tx.txRun(`
+        UPDATE doctors
+        SET total_paid = total_paid - ?,
+            balance = balance + ?
+        WHERE id = ?
+      `, [payment.amount, payment.amount, payment.doctor_id]);
+    });
 
-    // Ödeme kaydını sil
-    await dbRun('DELETE FROM payments WHERE id = ?', [paymentId]);
-
-    // Cari hesaptaki ödenmiş tutarı düş, bakiyeyi (kalan borç) yeniden arttır
-    await dbRun(`
-      UPDATE doctors
-      SET total_paid = total_paid - ?,
-          balance = balance + ?
-      WHERE id = ?
-    `, [payment.amount, payment.amount, payment.doctor_id]);
-
-    await dbRun('COMMIT;');
     res.json({ success: true, message: 'Ödeme kaydı silindi, borç bakiyesi güncellendi.' });
 
   } catch (error) {
-    await dbRun('ROLLBACK;').catch(() => {});
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -552,8 +530,8 @@ app.post('/api/gallery', uploadImages.fields([
       return res.status(400).json({ success: false, message: 'Öncesi ve Sonrası fotoğraflarının her ikisi de yüklenmelidir.' });
     }
 
-    const before_image = `/uploads/${req.files['before_image'][0].filename}`;
-    const after_image = `/uploads/${req.files['after_image'][0].filename}`;
+    const before_image = \`/uploads/\${req.files['before_image'][0].filename}\`;
+    const after_image = \`/uploads/\${req.files['after_image'][0].filename}\`;
 
     const result = await dbRun(
       'INSERT INTO gallery (title, description, category, before_image, after_image) VALUES (?, ?, ?, ?, ?)',
@@ -599,7 +577,7 @@ app.delete('/api/gallery/:id', async (req, res) => {
 // Veritabanını ilklendir ve sunucuyu dinlemeye başla
 initDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
+    console.log(\`Sunucu http://localhost:\${PORT} portunda çalışıyor.\`);
   });
 }).catch(err => {
   console.error('Sunucu başlatılamadı:', err);
