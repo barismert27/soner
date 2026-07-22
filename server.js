@@ -48,6 +48,7 @@ const uploadImages = multer({
     } else {
       cb(new Error('Yalnızca resim dosyaları yüklenebilir!'), false);
     }
+  }
 });
 
 // Form verilerini okuyabilmek için
