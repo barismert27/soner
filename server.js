@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 // Giriş İşlemi
 app.post('/login', (req, res) => {
   if (req.body.username === 'soner' && req.body.password === 'soner7610') {
-    res.cookie('admin_auth', 'success', { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+    res.cookie('admin_auth', 'success', { httpOnly: true });
     res.redirect('/admin.html');
   } else {
     res.redirect('/login.html?error=1');
