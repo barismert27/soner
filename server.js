@@ -68,6 +68,9 @@ app.post('/login', (req, res) => {
 app.use('/admin.html', (req, res, next) => {
   const cookies = req.headers.cookie || '';
   if (cookies.includes('admin_session=active')) {
+    // İçeri alındıktan hemen sonra çerezi yok ediyoruz.
+    // Böylece sayfada F5 (Yenile) yapıldığında elinde bilet kalmadığı için tekrar şifre isteyecek!
+    res.clearCookie('admin_session');
     return next();
   }
   res.redirect('/login.html');
@@ -592,6 +595,48 @@ app.delete('/api/gallery/:id', async (req, res) => {
 
     await dbRun('DELETE FROM gallery WHERE id = ?', [req.params.id]);
     res.json({ success: true, message: 'Galeri vakası ve ilişkili resimleri başarıyla silindi.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ----------------------------------------------------
+// GİDERLER APIS
+// ----------------------------------------------------
+
+app.get('/api/expenses', async (req, res) => {
+  try {
+    const expenses = await dbAll('SELECT * FROM expenses ORDER BY expense_date DESC, id DESC');
+    res.json(expenses);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/expenses', async (req, res) => {
+  try {
+    let { description, amount, expense_date } = req.body;
+    amount = parseFloat(amount);
+    
+    if (!description || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Geçerli bir açıklama ve tutar giriniz.' });
+    }
+
+    const result = await dbRun(
+      'INSERT INTO expenses (description, amount, expense_date) VALUES (?, ?, ?)',
+      [description.trim(), amount, expense_date || new Date().toISOString().split('T')[0]]
+    );
+
+    res.status(201).json({ success: true, id: result.id, message: 'Gider başarıyla kaydedildi.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/expenses/:id', async (req, res) => {
+  try {
+    await dbRun('DELETE FROM expenses WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: 'Gider başarıyla silindi.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

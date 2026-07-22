@@ -46,8 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchPayments();
         break;
       case 'view-gallery':
-        pageTitle.textContent = 'Galeri Vakaları Yönetimi';
+        pageTitle.textContent = 'Galeri Yönetimi';
         fetchGallery();
+        break;
+      case 'view-expenses':
+        pageTitle.textContent = 'Giderler Yönetimi';
+        fetchExpenses();
         break;
     }
   };

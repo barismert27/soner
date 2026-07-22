@@ -147,6 +147,17 @@ const initDatabase = async () => {
       );
     `);
 
+    // 5. GİDERLER TABLOSU
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS expenses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        description VARCHAR(255) NOT NULL,
+        amount DOUBLE NOT NULL,
+        expense_date DATE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log('MySQL veritabanı tabloları kontrol edildi / oluşturuldu.');
   } catch (error) {
     console.error('Veritabanı ilklendirme hatası:', error);
