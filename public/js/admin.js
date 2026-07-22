@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // UTILS / YARDIMCI METOTLAR
   // --------------------------------------------------
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0);
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Math.max(0, val || 0));
   };
 
   const formatDate = (dateStr) => {

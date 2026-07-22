@@ -226,6 +226,12 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+body.light-mode .stat-card .value {
+  background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .stat-card .value.highlight {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
