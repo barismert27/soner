@@ -22,7 +22,6 @@
         <a href="hakkimizda.html">Hakkımızda</a>
         <a href="galeri.html">Galeri</a>
         <a href="iletisim.html" class="active">İletişim</a>
-        <a href="admin.html" class="btn-admin">Yönetim Paneli</a>
       </nav>
       <div class="menu-toggle">
         <span></span>
@@ -69,30 +68,15 @@
         </div>
       </div>
 
-      <!-- Form Column -->
-      <div class="contact-form-container">
-        <h3 style="margin-bottom: 24px; font-size: 24px;">Bize İletişim Formuyla Ulaşın</h3>
-        <form id="contact-form">
-          <div class="form-group">
-            <label for="name">Adınız Soyadınız / Klinik Adı</label>
-            <input type="text" id="name" class="form-control" placeholder="Örn: Dr. Ahmet Yılmaz" required>
-          </div>
-          <div class="form-group">
-            <label for="email">E-Posta Adresiniz</label>
-            <input type="email" id="email" class="form-control" placeholder="isim@klinik.com" required>
-          </div>
-          <div class="form-group">
-            <label for="message">Mesajınız</label>
-            <textarea id="message" class="form-control" placeholder="Laboratuvarımıza iletmek istediğiniz mesaj..." required></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; border: none;">Gönder</button>
-        </form>
+      <!-- Map Column -->
+      <div class="contact-form-container" style="padding: 0; border: none; background: transparent; position: relative;">
+        <h3 style="margin-bottom: 24px; font-size: 24px;">Haritada Konumumuz</h3>
+        <div class="map-container" style="position: relative; width: 100%; height: 400px; border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color);">
+          <!-- Clickable overlay to open maps in new tab -->
+          <a href="https://maps.app.goo.gl/d8e1rJ9d" target="_blank" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10; background: transparent; display: block;" title="Haritada Aç"></a>
+          <iframe src="https://maps.google.com/maps?q=Akkent%20Mahallesi%2013400%20Nolu%20cadde%20Ahsen%20Sitesi%20A%20Blok%20Apartman%20Altı%20NO:1B.C%20ŞAHİNBEY/GAZİANTEP&t=&z=15&ie=UTF8&iwloc=&output=embed" style="width: 100%; height: 100%; border: 0;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
       </div>
-    </div>
-
-    <!-- Map Embed -->
-    <div class="map-container">
-      <iframe src="https://maps.google.com/maps?q=Akkent%20Mahallesi%2013400%20Nolu%20cadde%20Ahsen%20Sitesi%20A%20Blok%20Apartman%20Altı%20NO:1B.C%20ŞAHİNBEY/GAZİANTEP&t=&z=15&ie=UTF8&iwloc=&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
   </section>
 
