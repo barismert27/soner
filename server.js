@@ -48,20 +48,28 @@ const uploadImages = multer({
     } else {
       cb(new Error('Yalnızca resim dosyaları yüklenebilir!'), false);
     }
+});
+
+// Form verilerini okuyabilmek için
+app.use(express.urlencoded({ extended: true }));
+
+// Giriş İşlemi
+app.post('/login', (req, res) => {
+  if (req.body.username === 'soner' && req.body.password === 'soner7610') {
+    res.cookie('admin_auth', 'success', { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+    res.redirect('/admin.html');
+  } else {
+    res.redirect('/login.html?error=1');
   }
 });
 
-// Yönetim Paneli Şifre Koruması
+// Yönetim Paneli Şifre Koruması (Modern Cookie)
 app.use('/admin.html', (req, res, next) => {
-  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-  const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
-
-  if (login === 'soner' && password === 'soner7610') {
+  const cookies = req.headers.cookie || '';
+  if (cookies.includes('admin_auth=success')) {
     return next();
   }
-
-  res.set('WWW-Authenticate', 'Basic realm="401"');
-  res.status(401).send('Yetkisiz erişim.');
+  res.redirect('/login.html');
 });
 
 // Statik Dosyalar (Frontend ve Admin)
