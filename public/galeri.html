@@ -45,9 +45,8 @@
     <!-- Filters -->
     <div class="gallery-filters">
       <button class="filter-btn active" data-filter="all">Tüm Vakalar</button>
-      <button class="filter-btn" data-filter="zirconium">Zirkonyum</button>
-      <button class="filter-btn" data-filter="emax">E-Max</button>
-      <button class="filter-btn" data-filter="implant">İmplant Üstü</button>
+      <button class="filter-btn" data-filter="oncesi_sonrasi">Öncesi / Sonrası</button>
+      <button class="filter-btn" data-filter="is_yeri">İş Yerinden Kareler</button>
     </div>
 
     <!-- Gallery Grid -->
@@ -160,30 +159,46 @@
           const displayStyle = isVisible ? 'block' : 'none';
 
           const card = document.createElement('div');
-          card.className = 'gallery-item';
+          card.className = 'gallery-item' + (item.category === 'is_yeri' ? ' is-yeri-item' : '');
           card.style.display = displayStyle;
           card.setAttribute('data-category', item.category);
-          card.innerHTML = `
-            <div class="before-after-container">
-              <div class="before-after-image image-after">
-                <img src="${item.after_image}" alt="${item.title} Sonrası">
-                <span class="image-label after">Sonrası</span>
+          
+          if (item.category === 'is_yeri') {
+            card.innerHTML = `
+              <div class="is-yeri-content">
+                <div class="is-yeri-image">
+                  <img src="${item.before_image}" alt="${item.title}">
+                </div>
+                <div class="is-yeri-text">
+                  <h4>${item.title}</h4>
+                  <p>${item.description || ''}</p>
+                </div>
               </div>
-              <div class="before-after-image image-before">
-                <img src="${item.before_image}" alt="${item.title} Öncesi">
-                <span class="image-label before">Öncesi</span>
+            `;
+            grid.appendChild(card);
+          } else {
+            card.innerHTML = `
+              <div class="before-after-container">
+                <div class="before-after-image image-after">
+                  <img src="${item.after_image}" alt="${item.title} Sonrası">
+                  <span class="image-label after">Sonrası</span>
+                </div>
+                <div class="before-after-image image-before">
+                  <img src="${item.before_image}" alt="${item.title} Öncesi">
+                  <span class="image-label before">Öncesi</span>
+                </div>
+                <div class="slider-handle"></div>
               </div>
-              <div class="slider-handle"></div>
-            </div>
-            <div class="gallery-info">
-              <h4>${item.title}</h4>
-              <p>${item.description || ''}</p>
-            </div>
-          `;
-          grid.appendChild(card);
+              <div class="gallery-info">
+                <h4>${item.title}</h4>
+                <p>${item.description || ''}</p>
+              </div>
+            `;
+            grid.appendChild(card);
 
-          // Slider mantığını bu karta uygula
-          initDynamicSlider(card.querySelector('.before-after-container'));
+            // Slider mantığını bu karta uygula
+            initDynamicSlider(card.querySelector('.before-after-container'));
+          }
         });
       } catch (err) {
         console.error("Galeri yükleme hatası:", err);

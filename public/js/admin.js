@@ -721,9 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       items.forEach(item => {
-        let catText = 'Zirkonyum';
-        if (item.category === 'emax') catText = 'E-Max';
-        if (item.category === 'implant') catText = 'İmplant Üstü';
+        let catText = 'Öncesi / Sonrası';
+        if (item.category === 'is_yeri') catText = 'İş Yerinden Kareler';
 
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -734,9 +733,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <td><span class="badge badge-trial">${catText}</span></td>
           <td>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <img src="${item.before_image}" alt="Öncesi" style="width: 50px; height: 35px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-light);">
-              <span>➜</span>
-              <img src="${item.after_image}" alt="Sonrası" style="width: 50px; height: 35px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-light);">
+              <img src="${item.before_image}" alt="Görsel" style="width: 50px; height: 35px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-light);">
+              ${item.after_image ? `<span>➜</span><img src="${item.after_image}" alt="Sonrası" style="width: 50px; height: 35px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-light);">` : ''}
             </div>
           </td>
           <td style="text-align: center;">
@@ -768,6 +766,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.deleteGalleryItem = deleteGalleryItem;
 
+  const categorySelect = document.getElementById('gallery-category');
+  if (categorySelect) {
+    categorySelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      const afterGroup = document.getElementById('gallery-after-group');
+      const beforeLabel = document.getElementById('gallery-before-label');
+      const afterImg = document.getElementById('gallery-after-img');
+      if (val === 'is_yeri') {
+        if (afterGroup) afterGroup.style.display = 'none';
+        if (beforeLabel) beforeLabel.textContent = 'Fotoğraf *';
+        if (afterImg) afterImg.required = false;
+      } else {
+        if (afterGroup) afterGroup.style.display = 'block';
+        if (beforeLabel) beforeLabel.textContent = 'Öncesi Fotoğrafı *';
+        if (afterImg) afterImg.required = true;
+      }
+    });
+  }
+
   const addGalleryForm = document.getElementById('add-gallery-form');
   if (addGalleryForm) {
     addGalleryForm.addEventListener('submit', async (e) => {
@@ -779,8 +796,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const beforeImgFile = document.getElementById('gallery-before-img').files[0];
       const afterImgFile = document.getElementById('gallery-after-img').files[0];
 
-      if (!title || !category || !beforeImgFile || !afterImgFile) {
-        alert('Lütfen zorunlu alanları doldurun ve resimleri yükleyin.');
+      if (!title || !category || !beforeImgFile) {
+        alert('Lütfen zorunlu alanları doldurun ve en az 1 resim yükleyin.');
+        return;
+      }
+      
+      if (category === 'oncesi_sonrasi' && !afterImgFile) {
+        alert('Öncesi / Sonrası kategorisi için ikinci bir fotoğraf yüklenmelidir.');
         return;
       }
 
@@ -789,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
       formData.append('category', category);
       formData.append('description', description);
       formData.append('before_image', beforeImgFile);
-      formData.append('after_image', afterImgFile);
+      if (afterImgFile) formData.append('after_image', afterImgFile);
 
       const submitBtn = addGalleryForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;

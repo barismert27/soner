@@ -548,12 +548,17 @@ app.post('/api/gallery', uploadImages.fields([
     if (!title || !category) {
       return res.status(400).json({ success: false, message: 'Başlık ve kategori alanları zorunludur.' });
     }
-    if (!req.files || !req.files['before_image'] || !req.files['after_image']) {
-      return res.status(400).json({ success: false, message: 'Öncesi ve Sonrası fotoğraflarının her ikisi de yüklenmelidir.' });
+    
+    if (!req.files || !req.files['before_image']) {
+      return res.status(400).json({ success: false, message: 'Lütfen en az 1 fotoğraf yükleyin.' });
+    }
+
+    if (category === 'oncesi_sonrasi' && !req.files['after_image']) {
+      return res.status(400).json({ success: false, message: 'Öncesi / Sonrası kategorisi için ikinci bir fotoğraf yüklenmelidir.' });
     }
 
     const before_image = `/uploads/${req.files['before_image'][0].filename}`;
-    const after_image = `/uploads/${req.files['after_image'][0].filename}`;
+    const after_image = req.files['after_image'] ? `/uploads/${req.files['after_image'][0].filename}` : '';
 
     const result = await dbRun(
       'INSERT INTO gallery (title, description, category, before_image, after_image) VALUES (?, ?, ?, ?, ?)',

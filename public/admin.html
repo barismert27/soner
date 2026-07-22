@@ -437,18 +437,17 @@
             <div class="form-group" style="margin-bottom: 16px;">
               <label class="form-label" for="gallery-category">Kategori *</label>
               <select id="gallery-category" class="form-control-admin" required>
-                <option value="zirconium">Zirkonyum</option>
-                <option value="emax">E-Max</option>
-                <option value="implant">İmplant Üstü</option>
+                <option value="oncesi_sonrasi">Öncesi / Sonrası</option>
+                <option value="is_yeri">İş Yerinden Kareler</option>
               </select>
             </div>
 
-            <div class="form-group" style="margin-bottom: 16px;">
-              <label class="form-label" for="gallery-before-img">Öncesi Fotoğrafı *</label>
+            <div class="form-group" id="gallery-before-group" style="margin-bottom: 16px;">
+              <label class="form-label" id="gallery-before-label" for="gallery-before-img">Öncesi Fotoğrafı *</label>
               <input type="file" id="gallery-before-img" class="form-control-admin" accept="image/*" required>
             </div>
 
-            <div class="form-group" style="margin-bottom: 16px;">
+            <div class="form-group" id="gallery-after-group" style="margin-bottom: 16px;">
               <label class="form-label" for="gallery-after-img">Sonrası Fotoğrafı *</label>
               <input type="file" id="gallery-after-img" class="form-control-admin" accept="image/*" required>
             </div>
