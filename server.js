@@ -138,7 +138,7 @@ app.get('/api/jobs', async (req, res) => {
     }
     if (search) {
       query += ' AND (jobs.patient_name LIKE ? OR doctors.name LIKE ? OR jobs.sequence_no LIKE ?)';
-      const searchParam = \`%\${search}%\`;
+      const searchParam = `%${search}%`;
       params.push(searchParam, searchParam, searchParam);
     }
 
