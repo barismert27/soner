@@ -201,7 +201,7 @@ app.post('/api/jobs', upload.single('pdf'), async (req, res) => {
 
     total_price = parseFloat(total_price) || 0;
     patient_age = parseInt(patient_age) || null;
-    const pdf_path = req.file ? \`/uploads/\${req.file.filename}\` : null;
+    const pdf_path = req.file ? `/uploads/${req.file.filename}` : null;
 
     const { jobId } = await dbTransaction(async (tx) => {
       let finalDoctorId = doctor_id;
@@ -303,7 +303,7 @@ app.put('/api/jobs/:id', upload.single('pdf'), async (req, res) => {
 
     const newPrice = total_price !== undefined ? parseFloat(total_price) : existingJob.total_price;
     const priceDiff = newPrice - existingJob.total_price;
-    const newPdfPath = req.file ? \`/uploads/\${req.file.filename}\` : existingJob.pdf_path;
+    const newPdfPath = req.file ? `/uploads/${req.file.filename}` : existingJob.pdf_path;
 
     await dbTransaction(async (tx) => {
       await tx.txRun(`
@@ -530,8 +530,8 @@ app.post('/api/gallery', uploadImages.fields([
       return res.status(400).json({ success: false, message: 'Öncesi ve Sonrası fotoğraflarının her ikisi de yüklenmelidir.' });
     }
 
-    const before_image = \`/uploads/\${req.files['before_image'][0].filename}\`;
-    const after_image = \`/uploads/\${req.files['after_image'][0].filename}\`;
+    const before_image = `/uploads/${req.files['before_image'][0].filename}`;
+    const after_image = `/uploads/${req.files['after_image'][0].filename}`;
 
     const result = await dbRun(
       'INSERT INTO gallery (title, description, category, before_image, after_image) VALUES (?, ?, ?, ?, ?)',
@@ -577,7 +577,7 @@ app.delete('/api/gallery/:id', async (req, res) => {
 // Veritabanını ilklendir ve sunucuyu dinlemeye başla
 initDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(\`Sunucu http://localhost:\${PORT} portunda çalışıyor.\`);
+    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
   });
 }).catch(err => {
   console.error('Sunucu başlatılamadı:', err);
