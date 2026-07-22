@@ -1,76 +1,72 @@
-require('dotenv').config();
-const mysql = require('mysql2/promise');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'soner_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const dbPath = path.join(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Veritabanı bağlantı hatası:', err.message);
+  } else {
+    console.log('SQLite veritabanına başarıyla bağlanıldı.');
+  }
 });
 
-// Helper Promise Fonksiyonları (Uyumluluk için)
-const dbRun = async (sql, params = []) => {
-  try {
-    const [result] = await pool.execute(sql, params);
-    return { id: result.insertId, changes: result.affectedRows };
-  } catch (err) {
-    console.error('SQL Çalıştırma Hatası:', err);
-    throw err;
-  }
+// Yabancı anahtar (Foreign Key) desteğini etkinleştir
+db.run('PRAGMA foreign_keys = ON;');
+
+// Helper Promise Fonksiyonları
+const dbRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) {
+        console.error('SQL Çalıştırma Hatası:', err);
+        reject(err);
+      } else {
+        resolve({ id: this.lastID, changes: this.changes });
+      }
+    });
+  });
 };
 
-const dbAll = async (sql, params = []) => {
-  try {
-    const [rows] = await pool.execute(sql, params);
-    return rows;
-  } catch (err) {
-    console.error('SQL Sorgulama Hatası:', err);
-    throw err;
-  }
+const dbAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        console.error('SQL Sorgulama Hatası:', err);
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
 };
 
-const dbGet = async (sql, params = []) => {
-  try {
-    const [rows] = await pool.execute(sql, params);
-    return rows.length ? rows[0] : null;
-  } catch (err) {
-    console.error('SQL Tek Kayıt Sorgulama Hatası:', err);
-    throw err;
-  }
+const dbGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        console.error('SQL Tek Kayıt Sorgulama Hatası:', err);
+        reject(err);
+      } else {
+        resolve(row);
+      }
+    });
+  });
 };
 
-// Transaction wrapper helper for server.js
 const dbTransaction = async (callback) => {
-  const connection = await pool.getConnection();
+  await dbRun('BEGIN TRANSACTION');
   try {
-    await connection.beginTransaction();
+    const txRun = dbRun;
+    const txAll = dbAll;
+    const txGet = dbGet;
     
-    // Geçici olarak transaction objesi üzerinden helper fonksiyonlar
-    const txRun = async (sql, params = []) => {
-      const [result] = await connection.execute(sql, params);
-      return { id: result.insertId, changes: result.affectedRows };
-    };
-    const txAll = async (sql, params = []) => {
-      const [rows] = await connection.execute(sql, params);
-      return rows;
-    };
-    const txGet = async (sql, params = []) => {
-      const [rows] = await connection.execute(sql, params);
-      return rows.length ? rows[0] : null;
-    };
-
     const result = await callback({ txRun, txAll, txGet });
     
-    await connection.commit();
+    await dbRun('COMMIT');
     return result;
   } catch (error) {
-    await connection.rollback();
+    await dbRun('ROLLBACK');
     throw error;
-  } finally {
-    connection.release();
   }
 };
 
@@ -80,13 +76,13 @@ const initDatabase = async () => {
     // 1. DOKTORLAR / KLİNİKLER TABLOSU
     await dbRun(`
       CREATE TABLE IF NOT EXISTS doctors (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        phone VARCHAR(255),
-        email VARCHAR(255),
-        total_debt DOUBLE DEFAULT 0.0,
-        total_paid DOUBLE DEFAULT 0.0,
-        balance DOUBLE DEFAULT 0.0,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        phone TEXT,
+        email TEXT,
+        total_debt REAL DEFAULT 0.0,
+        total_paid REAL DEFAULT 0.0,
+        balance REAL DEFAULT 0.0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -94,26 +90,26 @@ const initDatabase = async () => {
     // 2. İŞLER (İŞ EMİRLERİ) TABLOSU
     await dbRun(`
       CREATE TABLE IF NOT EXISTS jobs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        doctor_id INT NOT NULL,
-        patient_name VARCHAR(255) NOT NULL,
-        sequence_no VARCHAR(255),
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doctor_id INTEGER NOT NULL,
+        patient_name TEXT NOT NULL,
+        sequence_no TEXT,
         entry_date DATE NOT NULL,
         delivery_date DATE,
-        patient_age INT,
-        patient_gender VARCHAR(50),
-        tooth_shape VARCHAR(100),
-        tooth_color VARCHAR(100),
+        patient_age INTEGER,
+        patient_gender TEXT,
+        tooth_shape TEXT,
+        tooth_color TEXT,
         selected_teeth TEXT,
         treatment_types TEXT,
         metal_trial_date DATETIME,
         dentin_trial_date DATETIME,
         wax_trial_date DATETIME,
         finish_trial_date DATETIME,
-        status VARCHAR(100) DEFAULT 'Yeni',
+        status TEXT DEFAULT 'Yeni',
         notes TEXT,
         pdf_path TEXT,
-        total_price DOUBLE DEFAULT 0.0,
+        total_price REAL DEFAULT 0.0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE RESTRICT
       );
@@ -122,10 +118,10 @@ const initDatabase = async () => {
     // 3. ÖDEMELER TABLOSU
     await dbRun(`
       CREATE TABLE IF NOT EXISTS payments (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        doctor_id INT NOT NULL,
-        job_id INT,
-        amount DOUBLE NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doctor_id INTEGER NOT NULL,
+        job_id INTEGER,
+        amount REAL NOT NULL,
         payment_date DATE NOT NULL,
         notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -137,24 +133,24 @@ const initDatabase = async () => {
     // 4. GALERİ VAKALARI TABLOSU
     await dbRun(`
       CREATE TABLE IF NOT EXISTS gallery (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
         description TEXT,
-        category VARCHAR(100) NOT NULL,
-        before_image VARCHAR(255) NOT NULL,
-        after_image VARCHAR(255) NOT NULL,
+        category TEXT NOT NULL,
+        before_image TEXT NOT NULL,
+        after_image TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    console.log('MySQL veritabanı tabloları kontrol edildi / oluşturuldu.');
+    console.log('SQLite veritabanı tabloları kontrol edildi / oluşturuldu.');
   } catch (error) {
     console.error('Veritabanı ilklendirme hatası:', error);
   }
 };
 
 module.exports = {
-  db: pool,
+  db,
   dbRun,
   dbAll,
   dbGet,
