@@ -43,8 +43,7 @@
   <section class="container" style="padding-top: 40px;">
     <!-- Filters -->
     <div class="gallery-filters">
-      <button class="filter-btn active" data-filter="all">Tüm Vakalar</button>
-      <button class="filter-btn" data-filter="oncesi_sonrasi">Öncesi / Sonrası</button>
+      <button class="filter-btn active" data-filter="oncesi_sonrasi">Öncesi / Sonrası</button>
       <button class="filter-btn" data-filter="is_yeri">İş Yerinden Kareler</button>
     </div>
 
@@ -99,7 +98,7 @@
 
   <script src="js/main.js"></script>
   <script>
-    let activeFilter = 'all';
+    let activeFilter = 'oncesi_sonrasi';
 
     // Before/After Slider fonksiyonu (Dinamik ögeler için)
     function initDynamicSlider(container) {
@@ -154,7 +153,7 @@
         }
 
         items.forEach(item => {
-          const isVisible = activeFilter === 'all' || item.category === activeFilter;
+          const isVisible = item.category === activeFilter;
           const displayStyle = isVisible ? 'block' : 'none';
 
           const card = document.createElement('div');
@@ -216,7 +215,7 @@
         // Yeniden yükleme yapmadan mevcut ögeleri göster/gizle
         const items = document.querySelectorAll('.gallery-item');
         items.forEach(item => {
-          if (activeFilter === 'all' || item.getAttribute('data-category') === activeFilter) {
+          if (item.getAttribute('data-category') === activeFilter) {
             item.style.display = 'block';
           } else {
             item.style.display = 'none';
