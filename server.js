@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 // Giriş İşlemi
 app.post('/login', (req, res) => {
   if (req.body.username === 'soner' && req.body.password === 'soner7610') {
-    res.cookie('admin_auth', 'success', { httpOnly: true });
+    res.cookie('admin_session', 'active', { httpOnly: true });
     res.redirect('/admin.html');
   } else {
     res.redirect('/login.html?error=1');
@@ -67,7 +67,7 @@ app.post('/login', (req, res) => {
 // Yönetim Paneli Şifre Koruması (Modern Cookie)
 app.use('/admin.html', (req, res, next) => {
   const cookies = req.headers.cookie || '';
-  if (cookies.includes('admin_auth=success')) {
+  if (cookies.includes('admin_session=active')) {
     return next();
   }
   res.redirect('/login.html');
