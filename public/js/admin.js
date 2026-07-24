@@ -1185,6 +1185,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  // --------------------------------------------------
+  // YENİ İŞ EKLE - TARİH KISITLAMALARI
+  // --------------------------------------------------
+  const stageMetal = document.getElementById('stage-metal');
+  const stageDentin = document.getElementById('stage-dentin');
+  const stageWax = document.getElementById('stage-wax');
+  const stageFinish = document.getElementById('stage-finish');
+
+  const updateDateMins = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const minNow = now.toISOString().slice(0, 16);
+
+    if (stageMetal) stageMetal.min = minNow;
+
+    if (stageDentin) {
+      stageDentin.min = (stageMetal && stageMetal.value) ? stageMetal.value : minNow;
+    }
+
+    if (stageWax) {
+      let minWax = minNow;
+      if (stageDentin && stageDentin.value) minWax = stageDentin.value;
+      else if (stageMetal && stageMetal.value) minWax = stageMetal.value;
+      stageWax.min = minWax;
+    }
+
+    if (stageFinish) {
+      let minFinish = minNow;
+      if (stageWax && stageWax.value) minFinish = stageWax.value;
+      else if (stageDentin && stageDentin.value) minFinish = stageDentin.value;
+      else if (stageMetal && stageMetal.value) minFinish = stageMetal.value;
+      stageFinish.min = minFinish;
+    }
+  };
+
+  const enforceDateOrder = () => {
+    updateDateMins();
+    if (stageMetal && stageDentin && stageDentin.value && stageDentin.value < stageMetal.value) stageDentin.value = '';
+    if (stageMetal && stageWax && stageWax.value && stageWax.value < stageMetal.value) stageWax.value = '';
+    if (stageMetal && stageFinish && stageFinish.value && stageFinish.value < stageMetal.value) stageFinish.value = '';
+    
+    if (stageDentin && stageWax && stageWax.value && stageWax.value < stageDentin.value) stageWax.value = '';
+    if (stageDentin && stageFinish && stageFinish.value && stageFinish.value < stageDentin.value) stageFinish.value = '';
+    
+    if (stageWax && stageFinish && stageFinish.value && stageFinish.value < stageWax.value) stageFinish.value = '';
+  };
+
+  if (stageMetal) stageMetal.addEventListener('change', enforceDateOrder);
+  if (stageDentin) stageDentin.addEventListener('change', enforceDateOrder);
+  if (stageWax) stageWax.addEventListener('change', enforceDateOrder);
+  if (stageFinish) stageFinish.addEventListener('change', enforceDateOrder);
+  
+  // İlk çalıştırma
+  updateDateMins();
+
   // İLK YÜKLENME AŞAMASI
   // --------------------------------------------------
   fetchStats();
