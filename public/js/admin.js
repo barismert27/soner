@@ -1052,9 +1052,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const amountInWords = "Yalnız: #" + numberToTurkishWords(parseFloat(amount)) + "# TL'dir.";
 
     const container = document.createElement('div');
-    container.style.display = 'none';
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '794px';
+    container.style.background = 'white';
+    
     container.innerHTML = `
-      <div id="receipt-pdf-template" style="font-family: 'Arial', sans-serif; padding: 20px; color: #0f172a; width: 800px; margin: 0 auto; box-sizing: border-box;">
+      <div id="receipt-pdf-template" style="font-family: 'Arial', sans-serif; padding: 20px; color: #0f172a; width: 100%; margin: 0 auto; box-sizing: border-box;">
          <!-- Header -->
          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
            <div>
@@ -1147,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         margin:       15,
         filename:     `Basyildiz_Tahsilat_Makbuzu_ID${id}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 794 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
