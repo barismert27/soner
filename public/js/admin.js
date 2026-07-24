@@ -1049,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formattedDate = new Date(dateStr).toLocaleDateString('tr-TR');
     const formattedAmount = parseFloat(amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
     const currentTime = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    const amountInWords = 'Yalnız: #' + numberToTurkishWords(parseFloat(amount)) + '# TL\\'dir.';
+    const amountInWords = "Yalnız: #" + numberToTurkishWords(parseFloat(amount)) + "# TL'dir.";
 
     const container = document.createElement('div');
     container.style.display = 'none';
