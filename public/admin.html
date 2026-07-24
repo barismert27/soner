@@ -566,6 +566,26 @@
                   
                   <form id="expense-form" class="space-y-5">
                       
+                      <!-- Ödeyen Ortak / Hekim -->
+                      <div>
+                          <label class="block text-sm font-medium text-slate-600 mb-1">Ödeyen Ortak / Hekim</label>
+                          <div class="relative">
+                              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <i class="fa-solid fa-user-doctor text-slate-400"></i>
+                              </div>
+                              <select id="expense-funder" required
+                                      class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800 appearance-none">
+                                  <option value="" disabled selected>Ödemeyi Yapan Doktoru Seçin</option>
+                                  <option value="Rıdvan">Rıdvan</option>
+                                  <option value="Tamer Başyıldız">Tamer Başyıldız</option>
+                                  <option value="Soner Başyıldız">Soner Başyıldız</option>
+                              </select>
+                              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                  <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                              </div>
+                          </div>
+                      </div>
+
                       <!-- Çalışan Adı Soyadı -->
                       <div>
                           <label class="block text-sm font-medium text-slate-600 mb-1">Çalışan Adı Soyadı</label>
@@ -636,7 +656,8 @@
                               <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                                   <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Belge No</th>
                                   <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Tarih</th>
-                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Çalışan</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Ödeyen Ortak</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Gideri Alan / İşlemi Yapan</th>
                                   <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Açıklama</th>
                                   <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-right">Tutar</th>
                                   <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-center">İşlemler</th>
@@ -667,74 +688,93 @@
   <!-- GİZLİ PDF ŞABLONU (Makbuz Çıktısı İçin)    -->
   <!-- ========================================== -->
   <div id="pdf-template-wrapper">
-      <div id="pdf-content" style="width: 800px; padding: 40px; background: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin:0;">
+      <div id="pdf-content" style="width: 794px; min-height: 1123px; padding: 50px; background: #fff; font-family: 'Times New Roman', Times, serif; color: #000; margin:0; box-sizing: border-box;">
           
-          <!-- PDF Header -->
-          <div style="border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
-              <div>
-                  <h1 style="margin: 0; color: #1e293b; font-size: 24px; font-weight: 700; letter-spacing: 1px; border:none; padding:0;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
-                  <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Laboratuvar ve Klinik Çözümleri</p>
+          <!-- Kurumsal Antet (Letterhead) -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+              <div style="width: 60%;">
+                  <h1 style="margin: 0; color: #000; font-size: 22px; font-weight: 700; font-family: Arial, sans-serif;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+                  <p style="margin: 3px 0 8px 0; color: #333; font-size: 13px; font-family: Arial, sans-serif; font-weight: bold;">Ağız ve Diş Sağlığı Laboratuvarı & Klinik Çözümleri</p>
+                  <p style="margin: 0; color: #555; font-size: 11px; font-family: Arial, sans-serif; line-height: 1.4;">
+                      Adres: Şehitkapi Mah. Atatürk Cad. No:12/A Şahinbey / GAZİANTEP<br>
+                      Tel: 0 (342) 000 00 00 | Vergi Dairesi: Şahinbey - VKN: 1234567890
+                  </p>
               </div>
-              <div style="text-align: right;">
-                  <h2 style="margin: 0; color: #2563eb; font-size: 28px; font-weight: 300; border:none; padding:0;">GİDER BELGESİ</h2>
-              </div>
-          </div>
-
-          <!-- Bilgiler -->
-          <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
-              <div style="background: #f8fafc; padding: 15px; border-radius: 8px; width: 45%;">
-                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Belge No</p>
-                  <p style="margin: 0; font-size: 16px; font-weight: 600;" id="pdf-id">#0000</p>
-              </div>
-              <div style="background: #f8fafc; padding: 15px; border-radius: 8px; width: 45%; text-align: right;">
-                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Belge Tarihi</p>
-                  <p style="margin: 0; font-size: 16px; font-weight: 600;" id="pdf-date">01.01.2026</p>
+              <div style="width: 38%; text-align: right;">
+                  <h2 style="margin: 0 0 10px 0; color: #0f172a; font-size: 18px; font-weight: 700; font-family: Arial, sans-serif;">GİDER PUSULASI / TEDİYE MAKBUZU</h2>
+                  <div style="border: 1px solid #000; padding: 8px; text-align: left; font-size: 12px; font-family: Arial, sans-serif;">
+                      <div style="margin-bottom: 4px;"><strong>Belge No:</strong> <span id="pdf-id">#0000</span></div>
+                      <div><strong>Tarih:</strong> <span id="pdf-date">01.01.2026</span></div>
+                  </div>
               </div>
           </div>
 
-          <!-- Gider Detayları -->
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+          <!-- Kalın Ayırıcı Çizgi -->
+          <div style="border-bottom: 3px solid #0f172a; margin-bottom: 30px;"></div>
+
+          <!-- Resmi ve Net Tablo -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-family: Arial, sans-serif; font-size: 13px;">
               <thead>
-                  <tr style="background: #1e293b; color: white;">
-                      <th style="padding: 12px 15px; text-align: left; font-size: 14px; font-weight: 500; border-radius: 6px 0 0 0;">Açıklama / Kalem</th>
-                      <th style="padding: 12px 15px; text-align: right; font-size: 14px; font-weight: 500; border-radius: 0 6px 0 0;">Tutar</th>
+                  <tr>
+                      <th style="border: 1px solid #000; padding: 10px; text-align: center; width: 8%; background-color: #f8fafc;">Sıra No</th>
+                      <th style="border: 1px solid #000; padding: 10px; text-align: left; width: 52%; background-color: #f8fafc;">Harcama Kalemi / Gider Açıklaması</th>
+                      <th style="border: 1px solid #000; padding: 10px; text-align: center; width: 20%; background-color: #f8fafc;">Ödeme Türü</th>
+                      <th style="border: 1px solid #000; padding: 10px; text-align: right; width: 20%; background-color: #f8fafc;">Tutar (TL)</th>
                   </tr>
               </thead>
               <tbody>
                   <tr>
-                      <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px;" id="pdf-desc">-</td>
-                      <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; text-align: right; font-weight: 600;" id="pdf-amount">0 ₺</td>
+                      <td style="border: 1px solid #000; padding: 12px; text-align: center;">1</td>
+                      <td style="border: 1px solid #000; padding: 12px;" id="pdf-desc">-</td>
+                      <td style="border: 1px solid #000; padding: 12px; text-align: center;">Nakit / Hesaben</td>
+                      <td style="border: 1px solid #000; padding: 12px; text-align: right; font-weight: bold;" id="pdf-amount">0 ₺</td>
                   </tr>
                   <tr>
-                      <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 15px; color: #475569; border:none;">Genel Toplam:</td>
-                      <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 18px; color: #2563eb; border:none;" id="pdf-total">0 ₺</td>
+                      <td colspan="3" style="border: 1px solid #000; padding: 12px; text-align: right; font-weight: bold;">GENEL TOPLAM:</td>
+                      <td style="border: 1px solid #000; padding: 12px; text-align: right; font-weight: bold; font-size: 15px;" id="pdf-total">0 ₺</td>
                   </tr>
               </tbody>
           </table>
 
-          <!-- Personel Bilgisi ve İmzalar -->
-          <div style="margin-top: 60px;">
-              <p style="margin-bottom: 30px; font-size: 14px; color: #475569;">
-                  Yukarıda belirtilen harcama, <strong id="pdf-emp" style="color: #0f172a;">-</strong> tarafından kurum adına yapılmıştır.
-              </p>
-              
-              <div style="display: flex; justify-content: space-between; margin-top: 50px;">
-                  <div style="text-align: center; width: 200px;">
-                      <hr style="border: none; border-top: 1px solid #cbd5e1; margin-bottom: 10px;">
-                      <p style="margin: 0; font-size: 14px; font-weight: 600;">Teslim Eden / Çalışan</p>
-                      <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">İmza</p>
+          <!-- Yazı İle Tutar -->
+          <div style="margin-bottom: 30px; font-family: Arial, sans-serif; font-size: 13px; font-weight: bold;">
+              Yalnız: <span id="pdf-words" style="text-decoration: underline;">#Sıfır#</span> TL'dir.
+          </div>
+
+          <!-- Hukuki ve Bürokratik Metin -->
+          <div style="margin-bottom: 50px; font-size: 13px; text-align: justify; line-height: 1.6;">
+              İşbu belge, yukarıda dökümü ve tutarı belirtilen kurum harcamasının personel <strong id="pdf-emp">-</strong> tarafından laboratuvar/klinik faaliyeti kapsamında yapıldığını ve ilgili tutarın <strong id="pdf-funder">-</strong> tarafından kendisine nakden / hesaben tediye edildiğini tevsik eder.
+          </div>
+
+          <!-- Kaşe ve İmza Kutuları -->
+          <div style="display: flex; justify-content: space-between; font-family: Arial, sans-serif;">
+              <!-- Sol Kutu -->
+              <div style="width: 45%; border: 1px solid #000; height: 140px; position: relative;">
+                  <div style="border-bottom: 1px solid #000; background-color: #f8fafc; padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">
+                      HARCAMAYI YAPAN / TESLİM ALAN
                   </div>
-                  <div style="text-align: center; width: 200px;">
-                      <hr style="border: none; border-top: 1px solid #cbd5e1; margin-bottom: 10px;">
-                      <p style="margin: 0; font-size: 14px; font-weight: 600;">Onaylayan / Doktor</p>
-                      <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">İmza ve Kaşe</p>
+                  <div style="padding: 10px; font-size: 12px; font-weight: bold;" id="pdf-emp-sign">
+                      -
+                  </div>
+                  <div style="position: absolute; bottom: 10px; left: 10px; font-size: 12px;">
+                      İmza:
+                  </div>
+              </div>
+
+              <!-- Sağ Kutu -->
+              <div style="width: 45%; border: 1px solid #000; height: 140px; position: relative;">
+                  <div style="border-bottom: 1px solid #000; background-color: #f8fafc; padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">
+                      KURUM YETKİLİSİ / ONAYLAYAN
+                  </div>
+                  <div style="padding: 10px; font-size: 12px; font-weight: bold;" id="pdf-funder-sign">
+                      -
+                  </div>
+                  <div style="position: absolute; bottom: 10px; left: 10px; font-size: 12px;">
+                      Kaşe ve İmza:
                   </div>
               </div>
           </div>
 
-          <div style="margin-top: 80px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;">
-              Bu belge sistem tarafından otomatik oluşturulmuştur. | Başyıldız Diş Stüdyosu Yönetim Sistemi
-          </div>
       </div>
   </div>
 

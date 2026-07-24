@@ -857,8 +857,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   if (localExpenses.length === 0) {
     localExpenses = [
-      { id: 1002, empName: "Ahmet Yılmaz", desc: "Klinik için zirkonyum blok alımı (5 adet)", amount: 12500, date: todayDate },
-      { id: 1001, empName: "Ayşe Demir", desc: "Aylık elektrik ve su faturası ödemesi", amount: 3450, date: "2026-07-20" }
+      { id: 1002, funder: "Soner Başyıldız", empName: "Ahmet Yılmaz", desc: "Klinik için zirkonyum blok alımı (5 adet)", amount: 12500, date: todayDate },
+      { id: 1001, funder: "Rıdvan", empName: "Ayşe Demir", desc: "Aylık elektrik ve su faturası ödemesi", amount: 3450, date: "2026-07-20" }
     ];
     localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
   }
@@ -891,6 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.innerHTML = `
           <td class="py-4 px-6 font-medium text-slate-900 border-b border-slate-100">#${exp.id}</td>
           <td class="py-4 px-6 text-slate-500 border-b border-slate-100">${formattedDate}</td>
+          <td class="py-4 px-6 font-medium text-brand-600 border-b border-slate-100">${exp.funder || '-'}</td>
           <td class="py-4 px-6 border-b border-slate-100">
               <div class="flex items-center gap-2">
                   <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
@@ -926,6 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (expenseForm) {
     expenseForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      const funder = document.getElementById('expense-funder').value;
       const empName = document.getElementById('expense-empName').value.trim();
       const desc = document.getElementById('expense-desc').value.trim();
       const amount = parseFloat(document.getElementById('expense-amount').value);
@@ -933,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const newId = localExpenses.length > 0 ? Math.max(...localExpenses.map(e => e.id)) + 1 : 1000;
       
-      localExpenses.unshift({ id: newId, empName, desc, amount, date });
+      localExpenses.unshift({ id: newId, funder, empName, desc, amount, date });
       localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
       fetchExpenses();
       
@@ -952,6 +954,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  function numberToTurkishWords(num) {
+    if (num === 0) return "Sıfır";
+    const ones = ["", "Bir", "İki", "Üç", "Dört", "Beş", "Altı", "Yedi", "Sekiz", "Dokuz"];
+    const tens = ["", "On", "Yirmi", "Otuz", "Kırk", "Elli", "Altmış", "Yetmiş", "Seksen", "Doksan"];
+    const scales = ["", "Bin", "Milyon", "Milyar"];
+    
+    let str = "";
+    let intPart = Math.floor(num);
+    let scaleIdx = 0;
+    
+    while (intPart > 0) {
+        let chunk = intPart % 1000;
+        if (chunk > 0) {
+            let chunkStr = "";
+            let h = Math.floor(chunk / 100);
+            let t = Math.floor((chunk % 100) / 10);
+            let o = chunk % 10;
+            
+            if (h > 1) chunkStr += ones[h] + "Yüz";
+            else if (h === 1) chunkStr += "Yüz";
+            
+            chunkStr += tens[t];
+            chunkStr += ones[o];
+            
+            // "BirBin" durumunu düzeltme
+            if (scaleIdx === 1 && chunkStr === "Bir") {
+                str = "Bin" + str;
+            } else {
+                str = chunkStr + scales[scaleIdx] + str;
+            }
+        }
+        intPart = Math.floor(intPart / 1000);
+        scaleIdx++;
+    }
+    
+    const cents = Math.round((num % 1) * 100);
+    if (cents > 0) {
+        let t = Math.floor(cents / 10);
+        let o = cents % 10;
+        str += " Virgül " + tens[t] + ones[o];
+    }
+    
+    return str || "Sıfır";
+  }
+
   window.generatePDF = function(id) {
     const exp = localExpenses.find(e => e.id === id);
     if (!exp) return;
@@ -961,18 +1008,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('pdf-id').innerText = '#' + exp.id;
     document.getElementById('pdf-date').innerText = formattedDate;
+    document.getElementById('pdf-funder').innerText = exp.funder || '-';
     document.getElementById('pdf-emp').innerText = exp.empName;
     document.getElementById('pdf-desc').innerText = exp.desc;
     document.getElementById('pdf-amount').innerText = formattedAmount;
     document.getElementById('pdf-total').innerText = formattedAmount;
+    
+    document.getElementById('pdf-emp-sign').innerText = exp.empName;
+    document.getElementById('pdf-funder-sign').innerText = exp.funder || 'KURUM YETKİLİSİ';
+    
+    document.getElementById('pdf-words').innerText = '#' + numberToTurkishWords(parseFloat(exp.amount)) + '#';
 
     const element = document.getElementById('pdf-content');
     const opt = {
         margin:       0,
-        filename:     `Gider_Belgesi_${exp.id}_${exp.empName.replace(/\s+/g, '_')}.pdf`,
+        filename:     `Gider_Pusulasi_${exp.id}_${exp.empName.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     html2pdf().set(opt).from(element).save();
   };
