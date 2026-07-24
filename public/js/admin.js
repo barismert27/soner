@@ -21,6 +21,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const matchingMenuItem = document.querySelector(`.sidebar-menu [data-target="${viewId}"]`);
     if (matchingMenuItem) matchingMenuItem.classList.add('active');
 
+    const headerPanel = document.querySelector('.header-panel');
+    if (headerPanel) {
+        if (viewId === 'view-expenses') {
+            headerPanel.style.display = 'none';
+        } else {
+            headerPanel.style.display = 'flex';
+        }
+    }
+
     // Başlık Güncellemesi
     switch (viewId) {
       case 'view-dashboard':
