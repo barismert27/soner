@@ -1053,8 +1053,9 @@ footer {
 }
 
 .is-yeri-image {
-  flex: 1;
-  max-width: 50%;
+  flex: 1.2;
+  max-width: 55%;
+  height: auto; /* Override the 250px height from earlier in the file */
   background-color: #f8fafc;
   display: flex;
   align-items: center;
