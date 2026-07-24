@@ -6,6 +6,43 @@
   <title>Başyıldız Diş Stüdyosu Yönetim Paneli | Lab Kontrol Sistemi</title>
   <link rel="stylesheet" href="css/admin.css">
   <link rel="icon" type="image/png" href="images/logo.png">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- html2pdf.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <script>
+      tailwind.config = {
+          corePlugins: {
+              preflight: false, // Prevents Tailwind from breaking the existing CSS layout
+          },
+          theme: {
+              extend: {
+                  fontFamily: {
+                      sans: ['Inter', 'sans-serif'],
+                  },
+                  colors: {
+                      brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+                  }
+              }
+          }
+      }
+  </script>
+  <style>
+      #pdf-template-wrapper { position: absolute; left: -9999px; top: -9999px; visibility: hidden; }
+      .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
 </head>
 <body>
 
@@ -492,57 +529,213 @@
   <!-- VIEW 7: GİDERLER -->
   <!-- -------------------------------------------------- -->
   <div id="view-expenses" class="view-section">
-    <div class="panel">
-      <div class="header-panel">
-        <h2>Gider Listesi</h2>
-        <button class="btn btn-primary" onclick="openExpenseModal()">➕ Yeni Gider Ekle</button>
+    <div class="max-w-7xl mx-auto font-sans">
+      <!-- Header -->
+      <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+              <h2 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-3 m-0">
+                  <div class="w-10 h-10 bg-brand-100 text-brand-600 rounded-xl flex items-center justify-center text-xl">
+                      <i class="fa-solid fa-wallet"></i>
+                  </div>
+                  Gider Yönetimi
+              </h2>
+              <p class="text-sm text-slate-500 mt-1 m-0">Laboratuvar harcamalarınızı ve gider fişlerinizi buradan yönetin.</p>
+          </div>
+          
+          <!-- Toplam Özet Kartı -->
+          <div class="bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
+              <div class="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xl">
+                  <i class="fa-solid fa-chart-line"></i>
+              </div>
+              <div>
+                  <p class="text-xs text-slate-400 font-medium uppercase tracking-wider m-0">Toplam Gider</p>
+                  <p class="text-2xl font-bold text-slate-800 m-0" id="total-expenses">0 ₺</p>
+              </div>
+          </div>
       </div>
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Tarih</th>
-              <th>Gider Açıklaması</th>
-              <th>Tutar</th>
-              <th>İşlemler</th>
-            </tr>
-          </thead>
-          <tbody id="expenses-tbody">
-            <!-- JS ile dolacak -->
-          </tbody>
-        </table>
+
+      <!-- Ana Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- SOL KOLON: Yeni Gider Formu -->
+          <div class="lg:col-span-4">
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sticky top-6">
+                  <h2 class="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2 m-0 border-none pb-0">
+                      <i class="fa-solid fa-plus-circle text-brand-500"></i> Yeni Gider Ekle
+                  </h2>
+                  
+                  <form id="expense-form" class="space-y-5">
+                      
+                      <!-- Çalışan Adı Soyadı -->
+                      <div>
+                          <label class="block text-sm font-medium text-slate-600 mb-1">Çalışan Adı Soyadı</label>
+                          <div class="relative">
+                              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <i class="fa-regular fa-user text-slate-400"></i>
+                              </div>
+                              <input type="text" id="expense-empName" required placeholder="Örn: Ahmet Yılmaz" 
+                                     class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800">
+                          </div>
+                      </div>
+
+                      <!-- Gider Açıklaması -->
+                      <div>
+                          <label class="block text-sm font-medium text-slate-600 mb-1">Gider Kalemi / Açıklaması</label>
+                          <div class="relative">
+                              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <i class="fa-solid fa-file-invoice text-slate-400"></i>
+                              </div>
+                              <input type="text" id="expense-desc" required placeholder="Örn: Zirkonyum blok alımı" 
+                                     class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800">
+                          </div>
+                      </div>
+
+                      <!-- Tutar -->
+                      <div>
+                          <label class="block text-sm font-medium text-slate-600 mb-1">Tutar (TL)</label>
+                          <div class="relative">
+                              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <i class="fa-solid fa-turkish-lira-sign text-slate-400"></i>
+                              </div>
+                              <input type="number" id="expense-amount" required min="0.01" step="0.01" placeholder="0.00" 
+                                     class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800">
+                          </div>
+                      </div>
+
+                      <!-- Tarih -->
+                      <div>
+                          <label class="block text-sm font-medium text-slate-600 mb-1">Tarih</label>
+                          <div class="relative">
+                              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <i class="fa-regular fa-calendar text-slate-400"></i>
+                              </div>
+                              <input type="date" id="expense-date" required 
+                                     class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800">
+                          </div>
+                      </div>
+
+                      <button type="submit" class="w-full mt-4 bg-brand-600 hover:bg-brand-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-[0.98] flex justify-center items-center gap-2 border-none cursor-pointer">
+                          <i class="fa-solid fa-check"></i> Gideri Kaydet
+                      </button>
+                  </form>
+              </div>
+          </div>
+
+          <!-- SAĞ KOLON: Gider Listesi Tablosu -->
+          <div class="lg:col-span-8">
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full">
+                  
+                  <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                      <h2 class="text-lg font-semibold text-slate-800 m-0 border-none pb-0">Geçmiş Giderler</h2>
+                      <span class="text-xs font-medium bg-slate-100 text-slate-500 py-1 px-3 rounded-full">Son Kayıtlar</span>
+                  </div>
+
+                  <div class="overflow-x-auto custom-scrollbar flex-1 p-0">
+                      <table class="w-full text-left border-collapse m-0">
+                          <thead>
+                              <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Belge No</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Tarih</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Çalışan</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-left">Açıklama</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-right">Tutar</th>
+                                  <th class="py-4 px-6 font-medium bg-slate-50 border-none text-slate-500 text-center">İşlemler</th>
+                              </tr>
+                          </thead>
+                          <tbody id="expense-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                              <!-- JS ile Doldurulacak -->
+                          </tbody>
+                      </table>
+                      
+                      <!-- Boş Durum -->
+                      <div id="expense-empty-state" class="hidden flex-col items-center justify-center py-12 text-center">
+                          <div class="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-2xl mb-3">
+                              <i class="fa-regular fa-folder-open"></i>
+                          </div>
+                          <p class="text-slate-500 font-medium m-0">Henüz kayıtlı bir gider yok.</p>
+                          <p class="text-slate-400 text-xs mt-1 m-0">Sol taraftaki formu kullanarak ekleyebilirsiniz.</p>
+                      </div>
+
+                  </div>
+              </div>
+          </div>
       </div>
     </div>
   </div>
 
-  <!-- ================================================== -->
-  <!-- MODAL: YENİ GİDER EKLE -->
-  <!-- ================================================== -->
-  <div id="expenseModal" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Yeni Gider Ekle</h2>
-        <button class="modal-close" onclick="closeExpenseModal()"><i class="fas fa-times"></i></button>
+  <!-- ========================================== -->
+  <!-- GİZLİ PDF ŞABLONU (Makbuz Çıktısı İçin)    -->
+  <!-- ========================================== -->
+  <div id="pdf-template-wrapper">
+      <div id="pdf-content" style="width: 800px; padding: 40px; background: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin:0;">
+          
+          <!-- PDF Header -->
+          <div style="border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                  <h1 style="margin: 0; color: #1e293b; font-size: 24px; font-weight: 700; letter-spacing: 1px; border:none; padding:0;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+                  <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Laboratuvar ve Klinik Çözümleri</p>
+              </div>
+              <div style="text-align: right;">
+                  <h2 style="margin: 0; color: #2563eb; font-size: 28px; font-weight: 300; border:none; padding:0;">GİDER BELGESİ</h2>
+              </div>
+          </div>
+
+          <!-- Bilgiler -->
+          <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+              <div style="background: #f8fafc; padding: 15px; border-radius: 8px; width: 45%;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Belge No</p>
+                  <p style="margin: 0; font-size: 16px; font-weight: 600;" id="pdf-id">#0000</p>
+              </div>
+              <div style="background: #f8fafc; padding: 15px; border-radius: 8px; width: 45%; text-align: right;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Belge Tarihi</p>
+                  <p style="margin: 0; font-size: 16px; font-weight: 600;" id="pdf-date">01.01.2026</p>
+              </div>
+          </div>
+
+          <!-- Gider Detayları -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+              <thead>
+                  <tr style="background: #1e293b; color: white;">
+                      <th style="padding: 12px 15px; text-align: left; font-size: 14px; font-weight: 500; border-radius: 6px 0 0 0;">Açıklama / Kalem</th>
+                      <th style="padding: 12px 15px; text-align: right; font-size: 14px; font-weight: 500; border-radius: 0 6px 0 0;">Tutar</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr>
+                      <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px;" id="pdf-desc">-</td>
+                      <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; text-align: right; font-weight: 600;" id="pdf-amount">0 ₺</td>
+                  </tr>
+                  <tr>
+                      <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 15px; color: #475569; border:none;">Genel Toplam:</td>
+                      <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 18px; color: #2563eb; border:none;" id="pdf-total">0 ₺</td>
+                  </tr>
+              </tbody>
+          </table>
+
+          <!-- Personel Bilgisi ve İmzalar -->
+          <div style="margin-top: 60px;">
+              <p style="margin-bottom: 30px; font-size: 14px; color: #475569;">
+                  Yukarıda belirtilen harcama, <strong id="pdf-emp" style="color: #0f172a;">-</strong> tarafından kurum adına yapılmıştır.
+              </p>
+              
+              <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+                  <div style="text-align: center; width: 200px;">
+                      <hr style="border: none; border-top: 1px solid #cbd5e1; margin-bottom: 10px;">
+                      <p style="margin: 0; font-size: 14px; font-weight: 600;">Teslim Eden / Çalışan</p>
+                      <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">İmza</p>
+                  </div>
+                  <div style="text-align: center; width: 200px;">
+                      <hr style="border: none; border-top: 1px solid #cbd5e1; margin-bottom: 10px;">
+                      <p style="margin: 0; font-size: 14px; font-weight: 600;">Onaylayan / Doktor</p>
+                      <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">İmza ve Kaşe</p>
+                  </div>
+              </div>
+          </div>
+
+          <div style="margin-top: 80px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;">
+              Bu belge sistem tarafından otomatik oluşturulmuştur. | Başyıldız Diş Stüdyosu Yönetim Sistemi
+          </div>
       </div>
-      <div class="modal-body">
-        <form id="expenseForm" onsubmit="addExpense(event)">
-          <div class="form-group">
-            <label>Gider Açıklaması (Kime/Nereye)</label>
-            <input type="text" id="expenseDesc" required placeholder="Örn: Ahmet Ustaya malzeme parası">
-          </div>
-          <div class="form-group">
-            <label>Tutar (TL)</label>
-            <input type="number" step="0.01" id="expenseAmount" required placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label>Tarih</label>
-            <input type="date" id="expenseDate" required>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:15px;">Kaydet</button>
-        </form>
-      </div>
-    </div>
   </div>
 
   <!-- ================================================== -->

@@ -847,6 +847,137 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------
+  // GİDERLER (EXPENSES) MANTIĞI (LocalStorage Tabanlı Test)
+  // --------------------------------------------------
+  const todayDate = new Date().toISOString().split('T')[0];
+  const expenseDateInput = document.getElementById('expense-date');
+  if (expenseDateInput) expenseDateInput.value = todayDate;
+
+  let localExpenses = JSON.parse(localStorage.getItem('basyildiz_expenses')) || [];
+  
+  if (localExpenses.length === 0) {
+    localExpenses = [
+      { id: 1002, empName: "Ahmet Yılmaz", desc: "Klinik için zirkonyum blok alımı (5 adet)", amount: 12500, date: todayDate },
+      { id: 1001, empName: "Ayşe Demir", desc: "Aylık elektrik ve su faturası ödemesi", amount: 3450, date: "2026-07-20" }
+    ];
+    localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
+  }
+
+  const fetchExpenses = () => {
+    const tableBody = document.getElementById('expense-table-body');
+    const emptyState = document.getElementById('expense-empty-state');
+    const totalDisplay = document.getElementById('total-expenses');
+    
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    let total = 0;
+
+    if (localExpenses.length === 0) {
+      emptyState.classList.remove('hidden');
+      emptyState.classList.add('flex');
+    } else {
+      emptyState.classList.add('hidden');
+      emptyState.classList.remove('flex');
+
+      localExpenses.forEach(exp => {
+        total += parseFloat(exp.amount);
+        const dateObj = new Date(exp.date);
+        const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
+        const formattedAmount = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors group";
+        tr.innerHTML = `
+          <td class="py-4 px-6 font-medium text-slate-900 border-b border-slate-100">#${exp.id}</td>
+          <td class="py-4 px-6 text-slate-500 border-b border-slate-100">${formattedDate}</td>
+          <td class="py-4 px-6 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
+                      ${exp.empName.charAt(0).toUpperCase()}
+                  </div>
+                  <span class="font-medium text-slate-700">${exp.empName}</span>
+              </div>
+          </td>
+          <td class="py-4 px-6 text-slate-600 truncate max-w-[200px] border-b border-slate-100" title="${exp.desc}">${exp.desc}</td>
+          <td class="py-4 px-6 text-right font-semibold text-slate-900 border-b border-slate-100">${formattedAmount} ₺</td>
+          <td class="py-4 px-6 text-center border-b border-slate-100">
+              <div class="flex justify-center gap-2">
+                  <button type="button" onclick="generatePDF(${exp.id})" title="PDF İndir" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm border-none cursor-pointer">
+                      <i class="fa-solid fa-file-pdf"></i>
+                  </button>
+                  <button type="button" onclick="deleteExpense(${exp.id})" title="Sil" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shadow-sm border-none cursor-pointer">
+                      <i class="fa-regular fa-trash-can"></i>
+                  </button>
+              </div>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+    
+    if(totalDisplay) {
+      totalDisplay.innerText = total.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+    }
+  };
+  window.fetchExpenses = fetchExpenses;
+
+  const expenseForm = document.getElementById('expense-form');
+  if (expenseForm) {
+    expenseForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const empName = document.getElementById('expense-empName').value.trim();
+      const desc = document.getElementById('expense-desc').value.trim();
+      const amount = parseFloat(document.getElementById('expense-amount').value);
+      const date = document.getElementById('expense-date').value;
+
+      const newId = localExpenses.length > 0 ? Math.max(...localExpenses.map(e => e.id)) + 1 : 1000;
+      
+      localExpenses.unshift({ id: newId, empName, desc, amount, date });
+      localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
+      fetchExpenses();
+      
+      expenseForm.reset();
+      document.getElementById('expense-date').value = todayDate;
+      notifySuccess('Yeni gider başarıyla kaydedildi.');
+    });
+  }
+
+  window.deleteExpense = function(id) {
+    if (confirm('Bu gider kaydını silmek istediğinize emin misiniz?')) {
+      localExpenses = localExpenses.filter(exp => exp.id !== id);
+      localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
+      fetchExpenses();
+      notifySuccess('Gider başarıyla silindi.');
+    }
+  };
+
+  window.generatePDF = function(id) {
+    const exp = localExpenses.find(e => e.id === id);
+    if (!exp) return;
+
+    const formattedDate = new Date(exp.date).toLocaleDateString('tr-TR');
+    const formattedAmount = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
+
+    document.getElementById('pdf-id').innerText = '#' + exp.id;
+    document.getElementById('pdf-date').innerText = formattedDate;
+    document.getElementById('pdf-emp').innerText = exp.empName;
+    document.getElementById('pdf-desc').innerText = exp.desc;
+    document.getElementById('pdf-amount').innerText = formattedAmount;
+    document.getElementById('pdf-total').innerText = formattedAmount;
+
+    const element = document.getElementById('pdf-content');
+    const opt = {
+        margin:       0,
+        filename:     `Gider_Belgesi_${exp.id}_${exp.empName.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
+  };
+
+  // --------------------------------------------------
   // İLK YÜKLENME AŞAMASI
   // --------------------------------------------------
   fetchStats();
