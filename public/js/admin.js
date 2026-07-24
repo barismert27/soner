@@ -1059,45 +1059,51 @@ document.addEventListener('DOMContentLoaded', () => {
     container.style.background = 'white';
     
     container.innerHTML = `
-      <div id="receipt-pdf-template" style="font-family: 'Arial', sans-serif; padding: 20px; color: #0f172a; width: 100%; margin: 0 auto; box-sizing: border-box;">
-         <!-- Header -->
-         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-           <div>
-             <h1 style="font-size: 24px; font-weight: 800; margin: 0; color: #0f172a;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
-             <div style="font-size: 13px; font-weight: 600; color: #334155; margin-top: 5px;">Ağız ve Diş Sağlığı Protez Laboratuvarı & Klinik Çözümleri</div>
-           </div>
-           <div style="text-align: right;">
-             <h2 style="font-size: 20px; font-weight: bold; margin: 0; color: #0f172a;">RESMİ TAHSİLAT MAKBUZU</h2>
-             <div style="border: 2px solid #0f172a; padding: 10px; margin-top: 10px; border-radius: 6px; display: inline-block; text-align: left; background: #f8fafc;">
-                <div style="font-size: 13px; margin-bottom: 4px;"><strong>Makbuz No:</strong> #${id}</div>
-                <div style="font-size: 13px; margin-bottom: 4px;"><strong>Tarih:</strong> ${formattedDate}</div>
-                <div style="font-size: 13px; margin-bottom: 4px;"><strong>Saat:</strong> ${currentTime}</div>
-                <div style="font-size: 13px;"><strong>Şube:</strong> Gaziantep Merkez Lab.</div>
-             </div>
-           </div>
-         </div>
+      <div id="receipt-pdf-template" style="font-family: 'Arial', sans-serif; padding: 20px; color: #0f172a; width: 100%; max-width: 750px; margin: 0 auto; box-sizing: border-box; display: block;">
          
-         <div style="font-size: 11px; color: #475569; margin-bottom: 15px;">
+         <!-- Header Table -->
+         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+           <tr>
+             <td style="vertical-align: top; width: 60%;">
+               <h1 style="font-size: 24px; font-weight: 800; margin: 0; color: #0f172a;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+               <div style="font-size: 13px; font-weight: 600; color: #334155; margin-top: 5px;">Ağız ve Diş Sağlığı Protez Laboratuvarı & Klinik Çözümleri</div>
+             </td>
+             <td style="vertical-align: top; text-align: right; width: 40%;">
+               <h2 style="font-size: 20px; font-weight: bold; margin: 0 0 10px 0; color: #0f172a;">RESMİ TAHSİLAT MAKBUZU</h2>
+               <table style="width: 100%; border-collapse: collapse; border: 2px solid #0f172a; border-radius: 6px; background: #f8fafc;">
+                 <tr><td style="padding: 4px 10px; font-size: 13px; text-align: left;"><strong>Makbuz No:</strong> #${id}</td></tr>
+                 <tr><td style="padding: 4px 10px; font-size: 13px; text-align: left;"><strong>Tarih:</strong> ${formattedDate}</td></tr>
+                 <tr><td style="padding: 4px 10px; font-size: 13px; text-align: left;"><strong>Saat:</strong> ${currentTime}</td></tr>
+                 <tr><td style="padding: 4px 10px 10px 10px; font-size: 13px; text-align: left;"><strong>Şube:</strong> Gaziantep Merkez Lab.</td></tr>
+               </table>
+             </td>
+           </tr>
+         </table>
+         
+         <div style="font-size: 11px; color: #475569; margin-bottom: 15px; display: block;">
            Adres: Şehitkapi Mah. Atatürk Cad. No:12/A Şahinbey / GAZİANTEP | Tel: 0 (342) 000 00 00 | E-posta: info@basyildizdis.com.tr | VD: Şahinbey - VKN: 1234567890
          </div>
 
-         <hr style="border: none; border-top: 3px solid #0f172a; margin-bottom: 30px;">
+         <hr style="border: none; border-top: 3px solid #0f172a; margin-bottom: 25px;">
 
-         <!-- Payer Info -->
-         <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-            <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; background: #f8fafc; box-sizing: border-box;">
+         <!-- Payer Info Table -->
+         <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+           <tr>
+             <td style="width: 48%; border: 1px solid #cbd5e1; padding: 15px; background: #f8fafc; vertical-align: top;">
                <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">ÖDEMEYİ YAPAN / CARİ HESAP</div>
                <div style="font-size: 16px; font-weight: bold; color: #0f172a;">${doctorName}</div>
-            </div>
-            <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; background: #f8fafc; box-sizing: border-box;">
+             </td>
+             <td style="width: 4%;"></td> <!-- Gutter -->
+             <td style="width: 48%; border: 1px solid #cbd5e1; padding: 15px; background: #f8fafc; vertical-align: top;">
                <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">TAHSİLAT İŞLEMİ / ÖDEME TÜRÜ</div>
                <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">İşlem: <span style="font-weight: normal;">Laboratuvar Cari Hesabına Mahsuben Tahsilat</span></div>
                <div style="font-size: 14px; font-weight: 600; color: #0f172a;">Şekli: <span style="font-weight: normal;">${notes || 'Nakit / Banka Havalesi'}</span></div>
-            </div>
-         </div>
+             </td>
+           </tr>
+         </table>
 
-         <!-- Table -->
-         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+         <!-- Main Table -->
+         <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
            <thead>
              <tr>
                <th style="border: 1px solid #0f172a; padding: 10px; background: #0f172a; color: white; text-align: left; font-size: 13px;">Sıra No</th>
@@ -1116,43 +1122,51 @@ document.addEventListener('DOMContentLoaded', () => {
            </tbody>
          </table>
 
-         <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
-            <div style="border: 2px solid #0f172a; padding: 12px 20px; border-radius: 6px; background: #f8fafc; display: flex; align-items: center; gap: 15px;">
-               <span style="font-size: 14px; font-weight: bold; color: #334155;">GENEL TOPLAM:</span>
-               <span style="font-size: 20px; font-weight: 900; color: #0f172a;">${formattedAmount}</span>
-            </div>
-         </div>
+         <!-- Total Table -->
+         <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+           <tr>
+             <td style="text-align: right;">
+               <div style="border: 2px solid #0f172a; padding: 12px 20px; background: #f8fafc; display: inline-block;">
+                 <span style="font-size: 14px; font-weight: bold; color: #334155; margin-right: 15px;">GENEL TOPLAM:</span>
+                 <span style="font-size: 20px; font-weight: 900; color: #0f172a;">${formattedAmount}</span>
+               </div>
+             </td>
+           </tr>
+         </table>
 
-         <div style="font-size: 14px; font-style: italic; font-weight: 600; color: #0f172a; margin-bottom: 30px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
+         <div style="font-size: 14px; font-style: italic; font-weight: 600; color: #0f172a; margin-bottom: 25px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; display: block;">
             ${amountInWords}
          </div>
 
          <!-- Legal Text -->
-         <div style="font-size: 11px; color: #475569; text-align: justify; line-height: 1.5; margin-bottom: 40px;">
+         <div style="font-size: 11px; color: #475569; text-align: justify; line-height: 1.5; margin-bottom: 35px; display: block;">
            İşbu belge; yukarıda unvanı ve adı belirtilen klinik/hekim hesabından, karşılığında laboratuvar hizmet bedeli veya cari mahsup olmak üzere yukarıda belirtilen tutarın kuruma nakden / hesaben tahsil edildiğini tevsik ve beyan eder. 213 Sayılı Vergi Usul Kanunu hükümleri uyarınca cari hesap kaydına işlenmiştir.
          </div>
 
-         <!-- Signatures -->
-         <div style="display: flex; gap: 30px;">
-            <div style="flex: 1; border: 1px solid #0f172a; border-radius: 8px; text-align: center; overflow: hidden;">
+         <!-- Signatures Table -->
+         <table style="width: 100%; border-collapse: collapse;">
+           <tr>
+             <td style="width: 45%; border: 1px solid #0f172a; text-align: center; vertical-align: top;">
                <div style="background: #0f172a; color: white; padding: 8px; font-size: 12px; font-weight: bold;">ÖDEMEYİ YAPAN (KLİNİK / DOKTOR)</div>
-               <div style="height: 100px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; color: #94a3b8; font-size: 11px;">Adı Soyadı / İmza / Kaşe</div>
-            </div>
-            <div style="flex: 1; border: 1px solid #0f172a; border-radius: 8px; text-align: center; overflow: hidden;">
+               <div style="height: 90px; padding-top: 75px; color: #94a3b8; font-size: 11px;">Adı Soyadı / İmza / Kaşe</div>
+             </td>
+             <td style="width: 10%;"></td> <!-- Gutter -->
+             <td style="width: 45%; border: 1px solid #0f172a; text-align: center; vertical-align: top;">
                <div style="background: #0f172a; color: white; padding: 8px; font-size: 12px; font-weight: bold;">TAHSİLAT YAPAN (KURUM YETKİLİSİ)</div>
-               <div style="height: 100px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; color: #94a3b8; font-size: 11px;">Başyıldız Diş Stüdyosu - Kaşe ve İmza</div>
-            </div>
-         </div>
+               <div style="height: 90px; padding-top: 75px; color: #94a3b8; font-size: 11px;">Başyıldız Diş Stüdyosu - Kaşe ve İmza</div>
+             </td>
+           </tr>
+         </table>
       </div>
     `;
     document.body.appendChild(container);
 
     const element = container.querySelector('#receipt-pdf-template');
     const opt = {
-        margin:       15,
+        margin:       10,
         filename:     `Basyildiz_Tahsilat_Makbuzu_ID${id}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 794 },
+        html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
