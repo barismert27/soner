@@ -29,6 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
             headerPanel.style.display = 'flex';
         }
     }
+    
+    const headerNewJobBtn = document.getElementById('header-new-job-btn');
+    if (headerNewJobBtn) {
+        const hiddenViews = ['view-payments', 'view-gallery', 'view-doctors', 'view-add-job', 'view-dashboard'];
+        if (hiddenViews.includes(viewId)) {
+            headerNewJobBtn.style.display = 'none';
+        } else {
+            headerNewJobBtn.style.display = 'block';
+        }
+    }
 
     // Başlık Güncellemesi
     switch (viewId) {
