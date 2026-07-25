@@ -392,6 +392,28 @@ header.scrolled {
   margin-top: 40px;
 }
 
+.stat-item {
+  text-align: center;
+}
+
+.stat-icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(14, 165, 233, 0.1);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  color: var(--primary);
+}
+
+.stat-icon svg {
+  width: 26px;
+  height: 26px;
+  stroke: var(--primary);
+}
+
 .stat-item h4 {
   font-size: 36px;
   color: var(--primary);
@@ -403,6 +425,88 @@ header.scrolled {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+/* References / Bize Güvenenler Section */
+.references-section {
+  padding: 100px 0;
+  background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
+}
+
+.references-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 10px;
+}
+
+.reference-card {
+  background: white;
+  border-radius: 20px;
+  padding: 36px 30px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  transition: var(--transition);
+}
+
+.reference-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+.ref-logo-placeholder {
+  width: 64px;
+  height: 64px;
+  background: rgba(14, 165, 233, 0.06);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.ref-logo-placeholder svg {
+  width: 48px;
+  height: 48px;
+}
+
+.ref-info {
+  flex: 1;
+}
+
+.ref-info h4 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.ref-location {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-bottom: 12px !important;
+}
+
+.ref-quote {
+  font-size: 14px;
+  color: var(--text-light);
+  line-height: 1.7;
+  font-style: italic;
+  border-left: 3px solid var(--primary);
+  padding-left: 14px;
+  margin: 0 !important;
+}
+
+.ref-disclaimer {
+  text-align: center;
+  margin-top: 32px;
+  font-size: 13px;
+  color: var(--text-light);
+  font-style: italic;
 }
 
 /* Sub-Pages Header */
@@ -879,6 +983,19 @@ footer {
   flex-direction: column;
   gap: 16px;
   z-index: 999;
+}
+
+@media (max-width: 768px) {
+  .floating-contact {
+    bottom: 20px;
+    right: 16px;
+    gap: 14px;
+  }
+
+  .float-btn {
+    width: 50px;
+    height: 50px;
+  }
 }
 
 .float-btn {

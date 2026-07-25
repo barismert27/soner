@@ -92,20 +92,72 @@
         <p>İş emri girişinden finansal mutabakatlara kadar tüm süreçlerin şeffaf bir şekilde yönetildiği entegre altyapımızla iş ortaklarımıza benzersiz bir deneyim sunuyoruz.</p>
         
         <div class="stats-grid">
-          <div class="stat-item">
-            <h4>15+</h4>
+          <div class="stat-item" data-target="15" data-suffix="+">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <h4 class="count-up" data-target="15" data-suffix="+">0+</h4>
             <p>Yıllık Tecrübe</p>
           </div>
-          <div class="stat-item">
-            <h4>120+</h4>
+          <div class="stat-item" data-target="120" data-suffix="+">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h4 class="count-up" data-target="120" data-suffix="+">0+</h4>
             <p>Anlaşmalı Klinik</p>
           </div>
-          <div class="stat-item">
-            <h4>25K+</h4>
+          <div class="stat-item" data-target="25" data-suffix="K+">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <h4 class="count-up" data-target="25" data-suffix="K+">0K+</h4>
             <p>Başarılı Protez</p>
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Bize Güvenenler / Referanslar Bölümü -->
+  <section class="references-section">
+    <div class="container">
+      <div class="section-header">
+        <h2>Bize Güvenenler</h2>
+        <p>Gaziantep ve çevresindeki klinikler, protez üretiminde güvenilir iş ortağı olarak Başyıldız'ı tercih ediyor.</p>
+      </div>
+      <div class="references-grid">
+        <div class="reference-card">
+          <div class="ref-logo-placeholder">
+            <svg viewBox="0 0 60 60" fill="none"><circle cx="30" cy="30" r="28" stroke="var(--primary)" stroke-width="2"/><path d="M20 30 Q25 20 30 30 Q35 40 40 30" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="30" cy="30" r="4" fill="var(--primary)" opacity="0.3"/></svg>
+          </div>
+          <div class="ref-info">
+            <h4>Sağlık Dental Kliniği</h4>
+            <p class="ref-location">📍 Şahinbey / Gaziantep</p>
+            <p class="ref-quote">"Zirkonyum kaplama vakalarımızda mükemmel renk uyumu ve mükemmel teslimat süresi. Yıllardır çalıştığımız en güvenilir laboratuvar."</p>
+          </div>
+        </div>
+        <div class="reference-card">
+          <div class="ref-logo-placeholder">
+            <svg viewBox="0 0 60 60" fill="none"><rect x="4" y="4" width="52" height="52" rx="12" stroke="var(--primary)" stroke-width="2"/><path d="M18 38 L18 24 L26 32 L30 22 L34 32 L42 24 L42 38" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="ref-info">
+            <h4>DentaSmile Ağız & Diş Sağlığı</h4>
+            <p class="ref-location">📍 Şehitkamil / Gaziantep</p>
+            <p class="ref-quote">"E-max lamine vakalarımızda prova sayımız neredeyse sıfıra indi. Dijital iş akışı gerçekten fark yaratıyor."</p>
+          </div>
+        </div>
+        <div class="reference-card">
+          <div class="ref-logo-placeholder">
+            <svg viewBox="0 0 60 60" fill="none"><circle cx="30" cy="30" r="28" stroke="var(--primary)" stroke-width="2"/><path d="M22 36 C22 30 26 26 30 26 C34 26 38 30 38 36" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="30" cy="21" r="4" stroke="var(--primary)" stroke-width="2"/></svg>
+          </div>
+          <div class="ref-info">
+            <h4>İmplant & Estetik Diş Merkezi</h4>
+            <p class="ref-location">📍 Nizip / Gaziantep</p>
+            <p class="ref-quote">"Full arch implant vakalarımızda kullandığımız Toronto köprüler her seferinde ilk oturuşta tam uyum sağlıyor. Harika bir ekip."</p>
+          </div>
+        </div>
+      </div>
+      <p class="ref-disclaimer">* Referans içerikleri yer tutucu olup sonradan güncellenecektir.</p>
     </div>
   </section>
 
@@ -153,5 +205,40 @@
   </div>
 
   <script src="js/main.js"></script>
+  <script>
+    // ---- Count-Up Animation (Scroll Triggered) ----
+    const countUpElements = document.querySelectorAll('.count-up');
+
+    const animateCount = (el) => {
+      const target = parseInt(el.dataset.target, 10);
+      const suffix = el.dataset.suffix || '';
+      const duration = 1800;
+      const start = performance.now();
+
+      const step = (now) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = Math.floor(eased * target);
+        el.textContent = value + suffix;
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = target + suffix;
+      };
+      requestAnimationFrame(step);
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target.dataset.animated) {
+          entry.target.dataset.animated = 'true';
+          animateCount(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    countUpElements.forEach(el => observer.observe(el));
+  </script>
 </body>
 </html>
+
