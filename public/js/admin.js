@@ -491,8 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Datalist ve Filtreler için Sadece Doktor Listesi
   const fetchDoctorsListOnly = async () => {
     try {
-      const res = await fetch('/api/doctors');
-      doctorsList = await res.json();
+      const resData = await res.json();
+      doctorsList = resData.doctors || (Array.isArray(resData) ? resData : []);
 
       // Doktor seçimi datalistini doldur
       const datalist = document.getElementById('doctors-list-datalist');
@@ -586,24 +586,35 @@ document.addEventListener('DOMContentLoaded', () => {
     return d.toISOString().split('T')[0];
   };
 
-  const getYMFromDate = (dateVal) => {
-    if (!dateVal) return '';
-    if (typeof dateVal === 'string') {
-      const cleanStr = dateVal.trim();
-      if (cleanStr.length >= 7 && cleanStr.includes('-')) {
-        const parts = cleanStr.split('-');
-        if (parts.length >= 2 && parts[0].length === 4) {
-          return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+  const getYMFromDate = (dateVal, fallbackVal = null) => {
+    const checkVal = (val) => {
+      if (!val) return '';
+      if (typeof val === 'string') {
+        const cleanStr = val.trim();
+        if (cleanStr.length >= 7) {
+          const sep = cleanStr.includes('-') ? '-' : (cleanStr.includes('/') ? '/' : (cleanStr.includes('.') ? '.' : null));
+          if (sep) {
+            const parts = cleanStr.split(sep);
+            if (parts.length >= 2 && parts[0].length === 4) {
+              return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+            }
+            if (parts.length >= 3 && parts[2].substring(0, 4).length === 4 && !isNaN(parts[2].substring(0, 4))) {
+              return `${parts[2].substring(0, 4)}-${parts[1].padStart(2, '0')}`;
+            }
+          }
         }
       }
-    }
-    const d = new Date(dateVal);
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      return `${y}-${m}`;
-    }
-    return '';
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+      }
+      return '';
+    };
+    const res1 = checkVal(dateVal);
+    if (res1) return res1;
+    return checkVal(fallbackVal);
   };
 
   let selectedCariMonth = 'all';
@@ -712,8 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
           totalPaid = parseFloat(doc.total_paid || 0);
           balance = parseFloat(doc.balance || 0);
         } else {
-          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date) === selectedCariMonth);
-          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date) === selectedCariMonth);
+          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date, j.created_at) === selectedCariMonth);
+          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date, p.created_at) === selectedCariMonth);
           
           totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
           totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
@@ -2055,8 +2066,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       
       const doc = data.doctor;
-      const jobs = data.jobs || [];
-      const payments = data.payments || [];
+      let jobs = data.jobs || [];
+      let payments = data.payments || [];
+      
+      let docTotalDebt = parseFloat(doc.total_debt || 0);
+      let docTotalPaid = parseFloat(doc.total_paid || 0);
+      let docBalance = parseFloat(doc.balance || 0);
+      let periodTitle = 'Tüm Zamanlar';
+
+      if (typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all') {
+        jobs = jobs.filter(j => getYMFromDate(j.entry_date, j.created_at) === selectedCariMonth);
+        payments = payments.filter(p => getYMFromDate(p.payment_date, p.created_at) === selectedCariMonth);
+        
+        docTotalDebt = jobs.reduce((sum, j) => sum + parseFloat(j.total_price || 0), 0);
+        docTotalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        docBalance = docTotalDebt - docTotalPaid;
+        periodTitle = formatMonthYearStr(selectedCariMonth);
+      }
       
       const nowStr = new Date().toLocaleString('tr-TR');
       const dateFileStr = new Date().toISOString().split('T')[0];
@@ -2072,8 +2098,8 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       } else {
         jobs.forEach((j, index) => {
-          const dateObj = new Date(j.entry_date);
-          const formattedDate = isNaN(dateObj.getTime()) ? j.entry_date : dateObj.toLocaleDateString('tr-TR');
+          const dateObj = new Date(j.entry_date || j.created_at);
+          const formattedDate = isNaN(dateObj.getTime()) ? (j.entry_date || j.created_at) : dateObj.toLocaleDateString('tr-TR');
           
           let unitCount = 0;
           if (j.selected_teeth && j.selected_teeth.trim()) {
@@ -2113,7 +2139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr>
               <td style="vertical-align: middle;">
                 <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
-                <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Klinik Ayrıntılı Cari Hesap Mutabakat Ekstresi</p>
+                <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Klinik Ayrıntılı Cari Hesap Mutabakat Ekstresi (${periodTitle})</p>
               </td>
               <td style="text-align: right; vertical-align: middle; font-size: 11px; color: #475569;">
                 <div><strong>Rapor Tarihi:</strong> ${nowStr}</div>
@@ -2134,20 +2160,20 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr>
               <td style="width: 33%; padding-right: 10px;">
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Toplam İş Borcu</div>
-                  <div style="font-size: 16px; font-weight: bold; color: #0f172a;">${parseFloat(doc.total_debt || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Toplam İş Borcu (${periodTitle})</div>
+                  <div style="font-size: 16px; font-weight: bold; color: #0f172a;">${docTotalDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
               <td style="width: 33%; padding: 0 5px;">
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Tahsil Edilen Toplam</div>
-                  <div style="font-size: 16px; font-weight: bold; color: #15803d;">${parseFloat(doc.total_paid || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Tahsil Edilen Toplam (${periodTitle})</div>
+                  <div style="font-size: 16px; font-weight: bold; color: #15803d;">${docTotalPaid.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
               <td style="width: 33%; padding-left: 10px;">
-                <div style="background: ${doc.balance > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${doc.balance > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: ${doc.balance > 0 ? '#991b1b' : '#166534'}; font-weight: bold; margin-bottom: 4px;">Kalan Mutabakat Bakiyesi</div>
-                  <div style="font-size: 16px; font-weight: bold; color: ${doc.balance > 0 ? '#b91c1c' : '#15803d'};">${parseFloat(doc.balance || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                <div style="background: ${docBalance > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${docBalance > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 10px; text-transform: uppercase; color: ${docBalance > 0 ? '#991b1b' : '#166534'}; font-weight: bold; margin-bottom: 4px;">Kalan Mutabakat Bakiyesi</div>
+                  <div style="font-size: 16px; font-weight: bold; color: ${docBalance > 0 ? '#b91c1c' : '#15803d'};">${docBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
             </tr>
@@ -2212,7 +2238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfWorker.output('blob').then(async (blob) => {
           const formData = new FormData();
           formData.append('pdf', blob, `Basyildiz_Cari_Ekstre_${doc.name.replace(/\s+/g, '_')}_${dateFileStr}.pdf`);
-          formData.append('title', `Cari Ekstre (${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`);
+          formData.append('title', `Cari Ekstre (${typeof periodTitle !== 'undefined' ? periodTitle : 'Genel'} - ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`);
 
           try {
             const uploadRes = await fetch(`/api/doctors/${docId}/statements`, {

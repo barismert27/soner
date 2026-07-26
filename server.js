@@ -87,8 +87,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/doctors', async (req, res) => {
   try {
     const doctors = await dbAll('SELECT * FROM doctors ORDER BY name ASC');
-    const jobs = await dbAll('SELECT id, doctor_id, total_price, entry_date FROM jobs');
-    const payments = await dbAll('SELECT id, doctor_id, amount, payment_date FROM payments');
+    const jobs = await dbAll('SELECT id, doctor_id, total_price, entry_date, created_at FROM jobs');
+    const payments = await dbAll('SELECT id, doctor_id, amount, payment_date, created_at FROM payments');
     res.json({ doctors, jobs, payments });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
