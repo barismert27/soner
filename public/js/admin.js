@@ -493,20 +493,31 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const fetchRes = await fetch('/api/doctors');
       const resData  = await fetchRes.json();
-      doctorsList = resData.doctors || (Array.isArray(resData) ? resData : []);
-
       // İş formu hekim <select>'ini doldur
       const docSelect = document.getElementById('job-doctor-select');
+      
+      if (!resData || !resData.doctors) {
+        console.error('API geçersiz veri döndürdü:', resData);
+        if (docSelect) docSelect.innerHTML = '<option value="">(Hata: API Verisi Alınamadı!)</option>';
+        return;
+      }
+      
+      doctorsList = resData.doctors;
+
       if (docSelect) {
         const prevVal = docSelect.value;
         docSelect.innerHTML = '<option value="">— Hekim / Klinik seçin —</option>';
-        doctorsList.forEach(doc => {
-          const opt = document.createElement('option');
-          opt.value = doc.name;
-          opt.dataset.doctorId = doc.id;
-          opt.textContent = doc.name;
-          docSelect.appendChild(opt);
-        });
+        if (doctorsList.length === 0) {
+          docSelect.innerHTML += '<option value="" disabled>(Veritabanında hiç hekim yok)</option>';
+        } else {
+          doctorsList.forEach(doc => {
+            const opt = document.createElement('option');
+            opt.value = doc.name;
+            opt.dataset.doctorId = doc.id;
+            opt.textContent = doc.name;
+            docSelect.appendChild(opt);
+          });
+        }
         if (prevVal) docSelect.value = prevVal;
       }
 
@@ -525,6 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.error('Doktor listesi çekilemedi:', err);
+      const docSelect = document.getElementById('job-doctor-select');
+      if (docSelect) docSelect.innerHTML = `<option value="">(Bağlantı Hatası: ${err.message})</option>`;
     }
   };
 
