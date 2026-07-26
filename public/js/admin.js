@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       case 'view-expenses':
         pageTitle.textContent = 'Giderler Yönetimi';
+        if (typeof renderExpenseDoctors === 'function') renderExpenseDoctors();
         fetchExpenses();
         break;
     }
@@ -323,6 +324,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td>
             <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="showDoctorDetail(${doc.id})">Cari/Ödeme Geçmişi</button>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-left: 5px; background: #6366f1; color: white;" onclick="downloadDetailedCariPDF(${doc.id})">
+              <i class="fa-solid fa-file-pdf"></i> Ekstre PDF
+            </button>
           </td>
         `;
         body.appendChild(row);
@@ -873,6 +877,74 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------
   // GİDERLER (EXPENSES) MANTIĞI (LocalStorage Tabanlı Test)
   // --------------------------------------------------
+  const renderExpenseDoctors = () => {
+    const select = document.getElementById('expense-funder');
+    if (!select) return;
+    const currentVal = select.value;
+
+    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors'));
+    if (!docList || !Array.isArray(docList) || docList.length === 0) {
+      docList = ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
+    }
+
+    select.innerHTML = '<option value="" disabled selected>Ödemeyi Yapan Doktoru Seçin</option>';
+    docList.forEach(doc => {
+      const option = document.createElement('option');
+      option.value = doc;
+      option.textContent = doc === 'Soner Başyıldız' ? 'Soner Başyıldız (Ana Hekim)' : doc;
+      if (doc === currentVal && currentVal !== '') {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+  };
+  window.renderExpenseDoctors = renderExpenseDoctors;
+  renderExpenseDoctors();
+
+  window.addExpenseDoctor = function() {
+    const newDoc = prompt('Giderler listesine eklemek istediğiniz yeni doktor / ortak adını giriniz:');
+    if (newDoc && newDoc.trim()) {
+      const cleaned = newDoc.trim();
+      let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+      if (docList.includes(cleaned)) {
+        alert('Bu doktor zaten listede mevcut.');
+        return;
+      }
+      docList.push(cleaned);
+      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
+      renderExpenseDoctors();
+      if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
+      const select = document.getElementById('expense-funder');
+      if (select) select.value = cleaned;
+      notifySuccess(`"${cleaned}" hekim listesine eklendi.`);
+    }
+  };
+
+  window.deleteExpenseDoctor = function() {
+    const select = document.getElementById('expense-funder');
+    const selectedValue = select ? select.value : '';
+
+    if (!selectedValue) {
+      alert('Lütfen silmek istediğiniz doktoru üstteki açılır listeden seçin.');
+      return;
+    }
+
+    if (selectedValue === 'Soner Başyıldız') {
+      alert('⚠️ Soner Başyıldız ana doktor (kurucu/yetkili) olduğu için listeden silinemez!');
+      return;
+    }
+
+    if (confirm(`"${selectedValue}" isimli hekimi giderler listesinden silmek istediğinize emin misiniz?`)) {
+      let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+      docList = docList.filter(doc => doc !== selectedValue);
+      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
+      renderExpenseDoctors();
+      if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
+      notifySuccess(`"${selectedValue}" gider hekim listesinden silindi.`);
+    }
+  };
+
   const todayDate = new Date().toISOString().split('T')[0];
   const expenseDateInput = document.getElementById('expense-date');
   if (expenseDateInput) expenseDateInput.value = todayDate;
@@ -887,7 +959,250 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
   }
 
+  // ORTAK / HEKİM GİDER ÖZET TABLOSU MANTIĞI
+  const renderDoctorExpensesSummary = () => {
+    const summaryBody = document.getElementById('doctor-expenses-summary-body');
+    const summaryTotalCount = document.getElementById('summary-total-count');
+    const summaryTotalAmount = document.getElementById('summary-total-amount');
+    if (!summaryBody) return;
+
+    summaryBody.innerHTML = '';
+    let grandTotal = 0;
+    let grandCount = 0;
+
+    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+    localExpenses.forEach(exp => {
+      if (exp.funder && !docList.includes(exp.funder)) {
+        docList.push(exp.funder);
+      }
+    });
+
+    docList.forEach(docName => {
+      const docExpenses = localExpenses.filter(e => e.funder === docName);
+      const count = docExpenses.length;
+      const totalAmount = docExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
+      grandCount += count;
+      grandTotal += totalAmount;
+
+      let expensesHTML = '';
+      if (count === 0) {
+        expensesHTML = '<span class="text-slate-400 italic text-xs">Henüz ödediği gider bulunmamaktadır.</span>';
+      } else {
+        expensesHTML = '<ul class="space-y-2 m-0 p-0 list-none">';
+        docExpenses.forEach(exp => {
+          const dateObj = new Date(exp.date);
+          const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
+          const formattedAmt = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          expensesHTML += `
+            <li class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs hover:bg-slate-100/80 transition-all">
+              <div>
+                <strong class="text-slate-800 font-semibold">${exp.desc || 'Gider'}</strong>
+                <span class="text-slate-500 block text-[11px] mt-0.5"><i class="fa-regular fa-user text-[10px] mr-1"></i>Ödenen: ${exp.empName || '-'} | <i class="fa-regular fa-calendar text-[10px] mx-1"></i>${formattedDate}</span>
+              </div>
+              <span class="font-bold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 whitespace-nowrap ml-2">${formattedAmt} ₺</span>
+            </li>
+          `;
+        });
+        expensesHTML += '</ul>';
+      }
+
+      const formattedTotal = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+      const isSoner = docName === 'Soner Başyıldız';
+
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50/50 transition-colors align-top";
+      tr.innerHTML = `
+        <td class="py-4 px-4 font-bold text-slate-800 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full ${isSoner ? 'bg-amber-100 text-amber-600' : 'bg-brand-50 text-brand-600'} flex items-center justify-center font-bold text-sm shrink-0">
+              ${isSoner ? '👑' : '👨‍⚕️'}
+            </span>
+            <div>
+              <span class="block text-slate-900 font-bold">${docName}</span>
+              <span class="text-[11px] text-slate-400 font-normal">${isSoner ? 'Ana Hekim / Kurucu' : 'Ortak Hekim'}</span>
+            </div>
+          </div>
+        </td>
+        <td class="py-4 px-4 border-b border-slate-100">${expensesHTML}</td>
+        <td class="py-4 px-3 text-center font-medium border-b border-slate-100">
+          <span class="bg-slate-100 text-slate-700 text-xs font-bold py-1 px-2.5 rounded-full inline-block">${count} Adet</span>
+        </td>
+        <td class="py-4 px-4 text-right border-b border-slate-100">
+          <span class="text-base font-extrabold ${totalAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}">${formattedTotal}</span>
+        </td>
+      `;
+      summaryBody.appendChild(tr);
+    });
+
+    if (summaryTotalCount) summaryTotalCount.textContent = grandCount + ' Fiş';
+    if (summaryTotalAmount) summaryTotalAmount.textContent = grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+  };
+  window.renderDoctorExpensesSummary = renderDoctorExpensesSummary;
+
+  // ORTAK GİDER ÖZET TABLOSUNU PDF OLARAK İNDİRME METODU
+  window.generateDoctorExpensesSummaryPDF = function() {
+    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+    localExpenses.forEach(exp => {
+      if (exp.funder && !docList.includes(exp.funder)) {
+        docList.push(exp.funder);
+      }
+    });
+
+    let grandTotal = 0;
+    let grandCount = 0;
+    const nowStr = new Date().toLocaleString('tr-TR');
+    const dateFileStr = new Date().toISOString().split('T')[0];
+
+    let tableRowsHTML = '';
+    docList.forEach(docName => {
+      const docExpenses = localExpenses.filter(e => e.funder === docName);
+      const count = docExpenses.length;
+      const totalAmount = docExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
+      grandCount += count;
+      grandTotal += totalAmount;
+
+      let itemsHTML = '';
+      if (count === 0) {
+        itemsHTML = '<div style="color: #64748b; font-style: italic; font-size: 11px;">Ödenen gider kaydı yok.</div>';
+      } else {
+        docExpenses.forEach((exp, idx) => {
+          const dateObj = new Date(exp.date);
+          const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
+          const formattedAmt = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          itemsHTML += `
+            <div style="padding: 6px 0; border-bottom: ${idx === docExpenses.length - 1 ? 'none' : '1px dashed #e2e8f0'}; font-size: 11px; display: flex; justify-content: space-between;">
+              <span><strong>• ${exp.desc || 'Gider'}</strong> <span style="color: #64748b;">(Ödenen: ${exp.empName || '-'} | Tarih: ${formattedDate})</span></span>
+              <strong style="color: #0f172a; margin-left: 10px;">${formattedAmt} ₺</strong>
+            </div>
+          `;
+        });
+      }
+
+      const formattedTotal = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+      const isSoner = docName === 'Soner Başyıldız';
+
+      tableRowsHTML += `
+        <tr style="border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;">
+          <td style="padding: 12px 10px; vertical-align: top; width: 25%;">
+            <strong style="font-size: 13px; color: #0f172a; display: block;">${isSoner ? '👑 ' : '👨‍⚕️ '}${docName}</strong>
+            <span style="font-size: 11px; color: #64748b;">${isSoner ? 'Ana Hekim / Yetkili' : 'Ortak Hekim'}</span>
+          </td>
+          <td style="padding: 12px 10px; vertical-align: top; width: 50%;">
+            ${itemsHTML}
+          </td>
+          <td style="padding: 12px 10px; vertical-align: top; width: 10%; text-align: center; font-weight: bold; font-size: 12px; color: #334155;">
+            ${count} Fiş
+          </td>
+          <td style="padding: 12px 10px; vertical-align: top; width: 15%; text-align: right; font-weight: bold; font-size: 13px; color: ${totalAmount > 0 ? '#059669' : '#64748b'};">
+            ${formattedTotal}
+          </td>
+        </tr>
+      `;
+    });
+
+    const formattedGrandTotal = grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+
+    let signaturesHTML = '';
+    const signDocs = docList.slice(0, 4);
+    signDocs.forEach(d => {
+      signaturesHTML += `
+        <td style="width: ${100 / signDocs.length}%; text-align: center; padding: 10px;">
+          <div style="border-top: 1px solid #000; paddingTop: 6px; font-weight: bold; font-size: 11px; color: #0f172a;">
+            ${d}
+          </div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Kaşe & İmza</div>
+        </td>
+      `;
+    });
+
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = `
+      <div id="doctor-summary-pdf-template" style="width: 210mm; background: white; padding: 15mm; font-family: 'Inter', sans-serif; color: #1e293b; box-sizing: border-box;">
+        
+        <!-- HEADER -->
+        <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; border-collapse: collapse;">
+          <tr>
+            <td style="vertical-align: middle;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+              <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Ortaklar & Hekimler Gider ve Cari Harcama Raporu</p>
+            </td>
+            <td style="text-align: right; vertical-align: middle; font-size: 11px; color: #475569;">
+              <div><strong>Rapor Tarihi:</strong> ${nowStr}</div>
+              <div style="margin-top: 2px;"><strong>Rapor No:</strong> #GR-${Date.now().toString().slice(-4)}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- BİLGİ ÖZETİ -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between;">
+          <span>Bu raporda, stüdyomuz ortaklarının ve hekimlerinin bireysel harcama kalemleri ve toplam bakiye dökümleri yer almaktadır.</span>
+          <strong>Toplam: ${grandCount} Fiş / Kayıt</strong>
+        </div>
+
+        <!-- ANA TABLO -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #cbd5e1;">
+          <thead>
+            <tr style="background-color: #0f172a; color: white; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 25%;">Ortak / Hekim</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 50%;">Ödenen Tüm Giderler & Açıklamaları</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 10%; text-align: center;">Fiş</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 15%; text-align: right;">Toplam Tutar</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #1e293b; color: white; font-weight: bold; font-size: 14px;">
+              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #1e293b;">GENEL TOPLAM HARCAMA:</td>
+              <td style="padding: 12px; text-align: center; border: 1px solid #1e293b; color: #fcd34d;">${grandCount} Adet</td>
+              <td style="padding: 12px; text-align: right; border: 1px solid #1e293b; color: #34d399; font-size: 16px;">${formattedGrandTotal}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- İMZA ALANI -->
+        <div style="margin-top: 50px; page-break-inside: avoid;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              ${signaturesHTML}
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; font-size: 10px; color: #94a3b8; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+          Başyıldız Diş Stüdyosu Laboratuvar ve Hekim Takip Sistemleri • Elektronik Rapor
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const element = container.querySelector('#doctor-summary-pdf-template');
+    const opt = {
+      margin:       5,
+      filename:     `Basyildiz_Ortak_Gider_Raporu_${dateFileStr}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      document.body.removeChild(container);
+      notifySuccess('Ortak gider özet raporu PDF olarak başarıyla indirildi.');
+    }).catch(err => {
+      console.error('PDF oluşturma hatası:', err);
+      document.body.removeChild(container);
+    });
+  };
+
   const fetchExpenses = () => {
+    if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
+
     const tableBody = document.getElementById('expense-table-body');
     const emptyState = document.getElementById('expense-empty-state');
     const totalDisplay = document.getElementById('total-expenses');
@@ -1052,6 +1367,231 @@ document.addEventListener('DOMContentLoaded', () => {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     html2pdf().set(opt).from(element).save();
+  };
+
+  // --------------------------------------------------
+  // DETAYLI HEKİM CARİ EKSTRE PDF İNDİRME FONKSİYONLARI
+  // --------------------------------------------------
+  window.downloadDetailedCariPDFFromModal = function() {
+    const docId = document.getElementById('payment-doctor-id').value;
+    if (docId) {
+      downloadDetailedCariPDF(docId);
+    } else {
+      alert('Doktor bilgisi bulunamadı.');
+    }
+  };
+
+  window.downloadDetailedCariPDF = async function(docId) {
+    try {
+      const res = await fetch(`/api/doctors/${docId}`);
+      if (!res.ok) throw new Error('Doktor bilgileri sunucudan alınamadı.');
+      const data = await res.json();
+      
+      const doc = data.doctor;
+      const jobs = data.jobs || [];
+      const payments = data.payments || [];
+      
+      const nowStr = new Date().toLocaleString('tr-TR');
+      const dateFileStr = new Date().toISOString().split('T')[0];
+      
+      let jobsRowsHTML = '';
+      if (jobs.length === 0) {
+        jobsRowsHTML = `
+          <tr>
+            <td colspan="6" style="padding: 15px; text-align: center; color: #64748b; font-style: italic; font-size: 12px; border: 1px solid #cbd5e1;">
+              Kayıtlı herhangi bir hasta/vaka iş emri bulunmamaktadır.
+            </td>
+          </tr>
+        `;
+      } else {
+        jobs.forEach((j, index) => {
+          const dateObj = new Date(j.entry_date);
+          const formattedDate = isNaN(dateObj.getTime()) ? j.entry_date : dateObj.toLocaleDateString('tr-TR');
+          
+          let unitCount = 0;
+          if (j.selected_teeth && j.selected_teeth.trim()) {
+            unitCount = j.selected_teeth.split(',').map(t => t.trim()).filter(Boolean).length;
+          }
+          const unitStr = unitCount > 0 ? `${unitCount} Üye` : '1 Üye';
+          
+          const formattedPrice = parseFloat(j.total_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+          const treatment = j.treatment_types || '-';
+          
+          jobsRowsHTML += `
+            <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px; page-break-inside: avoid;">
+              <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${index + 1}</td>
+              <td style="padding: 8px; border: 1px solid #cbd5e1;">${formattedDate}</td>
+              <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>${j.patient_name}</strong></td>
+              <td style="padding: 8px; border: 1px solid #cbd5e1;">${treatment}</td>
+              <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">
+                <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">
+                  ${j.selected_teeth ? j.selected_teeth : ''} (${unitStr})
+                </span>
+              </td>
+              <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">${formattedPrice}</td>
+            </tr>
+          `;
+        });
+      }
+      
+      let paymentsRowsHTML = '';
+      if (payments.length === 0) {
+        paymentsRowsHTML = `
+          <tr>
+            <td colspan="4" style="padding: 10px; text-align: center; color: #64748b; font-style: italic; font-size: 11px; border: 1px solid #cbd5e1;">
+              Kayıtlı herhangi bir ödeme tahsilatı bulunmamaktadır.
+            </td>
+          </tr>
+        `;
+      } else {
+        payments.forEach((p, index) => {
+          const dateObj = new Date(p.payment_date);
+          const formattedDate = isNaN(dateObj.getTime()) ? p.payment_date : dateObj.toLocaleDateString('tr-TR');
+          const formattedAmt = parseFloat(p.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+          
+          paymentsRowsHTML += `
+            <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px; page-break-inside: avoid;">
+              <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${index + 1}</td>
+              <td style="padding: 6px; border: 1px solid #cbd5e1;">${formattedDate}</td>
+              <td style="padding: 6px; border: 1px solid #cbd5e1;">${p.notes || 'Cari Ödeme'}</td>
+              <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: #059669;">+ ${formattedAmt}</td>
+            </tr>
+          `;
+        });
+      }
+      
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.innerHTML = `
+        <div id="cari-ekstre-pdf-template" style="width: 210mm; background: white; padding: 15mm; font-family: 'Inter', sans-serif; color: #1e293b; box-sizing: border-box;">
+          
+          <!-- HEADER -->
+          <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; border-collapse: collapse;">
+            <tr>
+              <td style="vertical-align: middle;">
+                <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+                <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Klinik Ayrıntılı Cari Hesap Mutabakat Ekstresi</p>
+              </td>
+              <td style="text-align: right; vertical-align: middle; font-size: 11px; color: #475569;">
+                <div><strong>Rapor Tarihi:</strong> ${nowStr}</div>
+                <div style="margin-top: 2px;"><strong>Cari Hesap No:</strong> #CAR-${docId}-${Date.now().toString().slice(-4)}</div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- KLİNİK BİLGİSİ -->
+          <div style="margin-bottom: 20px;">
+            <h2 style="margin: 0 0 8px 0; font-size: 16px; color: #0f172a; text-transform: uppercase;">MÜŞTERİ / KLİNİK: ${doc.name}</h2>
+            ${doc.phone ? `<div style="font-size: 12px; color: #475569;"><strong>Telefon:</strong> ${doc.phone}</div>` : ''}
+            ${doc.email ? `<div style="font-size: 12px; color: #475569;"><strong>E-Posta:</strong> ${doc.email}</div>` : ''}
+          </div>
+
+          <!-- BİLGİ ÖZET KUTULARI -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+            <tr>
+              <td style="width: 33%; padding-right: 10px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Toplam İş Borcu</div>
+                  <div style="font-size: 16px; font-weight: bold; color: #0f172a;">${parseFloat(doc.total_debt || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                </div>
+              </td>
+              <td style="width: 33%; padding: 0 5px;">
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Tahsil Edilen Toplam</div>
+                  <div style="font-size: 16px; font-weight: bold; color: #15803d;">${parseFloat(doc.total_paid || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                </div>
+              </td>
+              <td style="width: 33%; padding-left: 10px;">
+                <div style="background: ${doc.balance > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${doc.balance > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 10px; text-transform: uppercase; color: ${doc.balance > 0 ? '#991b1b' : '#166534'}; font-weight: bold; margin-bottom: 4px;">Kalan Mutabakat Bakiyesi</div>
+                  <div style="font-size: 16px; font-weight: bold; color: ${doc.balance > 0 ? '#b91c1c' : '#15803d'};">${parseFloat(doc.balance || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- YAPILAN İŞLER DETAY TABLOSU -->
+          <h3 style="font-size: 13px; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Yapılan Protez / Tedavi İş Emirleri</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: 1px solid #cbd5e1;">
+            <thead>
+              <tr style="background-color: #0f172a; color: white; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                <th style="padding: 8px; border: 1px solid #0f172a; text-align: center; width: 5%;">Sıra</th>
+                <th style="padding: 8px; border: 1px solid #0f172a; width: 15%;">Tarih</th>
+                <th style="padding: 8px; border: 1px solid #0f172a; width: 25%;">Hasta Adı & Soyadı</th>
+                <th style="padding: 8px; border: 1px solid #0f172a; width: 25%;">Materyal / İşlem</th>
+                <th style="padding: 8px; border: 1px solid #0f172a; text-align: center; width: 18%;">Diş & Üye Adedi</th>
+                <th style="padding: 8px; border: 1px solid #0f172a; text-align: right; width: 12%;">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobsRowsHTML}
+            </tbody>
+          </table>
+
+          <!-- ÖDEMELER GEÇMİŞİ TABLOSU -->
+          <h3 style="font-size: 13px; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Tahsilat Geçmişi (Ödemeler)</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #cbd5e1;">
+            <thead>
+              <tr style="background-color: #1e293b; color: white; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                <th style="padding: 6px; border: 1px solid #1e293b; text-align: center; width: 5%;">Sıra</th>
+                <th style="padding: 6px; border: 1px solid #1e293b; width: 20%;">Ödeme Tarihi</th>
+                <th style="padding: 6px; border: 1px solid #1e293b; width: 55%;">Not / Ödeme Türü</th>
+                <th style="padding: 6px; border: 1px solid #1e293b; text-align: right; width: 20%;">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentsRowsHTML}
+            </tbody>
+          </table>
+
+          <!-- MUTABAKAT ONAYI / İMZA -->
+          <div style="margin-top: 50px; page-break-inside: avoid;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="width: 45%; border: 1px solid #cbd5e1; text-align: center; vertical-align: top; padding: 12px;">
+                  <div style="font-weight: bold; font-size: 12px; color: #0f172a; margin-bottom: 6px;">KLİNİK / HEKİM ONAYI</div>
+                  <div style="font-size: 11px; color: #1e293b; font-weight: bold; margin-bottom: 35px;">${doc.name}</div>
+                  <div style="font-size: 10px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">İmza / Tarih</div>
+                </td>
+                <td style="width: 10%;"></td>
+                <td style="width: 45%; border: 1px solid #cbd5e1; text-align: center; vertical-align: top; padding: 12px;">
+                  <div style="font-weight: bold; font-size: 12px; color: #0f172a; margin-bottom: 6px;">BAŞYILDIZ DİŞ STÜDYOSU</div>
+                  <div style="font-size: 11px; color: #64748b; margin-bottom: 35px;">Laboratuvar Sorumlusu</div>
+                  <div style="font-size: 10px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">Kaşe & İmza</div>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 35px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+            Bu ekstre Başyıldız Diş Stüdyosu Laboratuvar Takip Sistemi tarafından otomatik üretilmiştir. Cari borç mutabakatı için resmi evrak niteliğindedir.
+          </div>
+        </div>
+      `;
+      document.body.appendChild(container);
+      
+      const element = container.querySelector('#cari-ekstre-pdf-template');
+      const opt = {
+        margin:       5,
+        filename:     `Basyildiz_Cari_Ekstre_${doc.name.replace(/\s+/g, '_')}_${dateFileStr}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      html2pdf().set(opt).from(element).save().then(() => {
+        document.body.removeChild(container);
+        notifySuccess('Klinik cari ekstresi PDF olarak indirildi.');
+      }).catch(err => {
+        console.error('Cari PDF oluşturma hatası:', err);
+        document.body.removeChild(container);
+      });
+      
+    } catch (err) {
+      alert('Cari döküm alınırken bir hata oluştu: ' + err.message);
+    }
   };
 
   // --------------------------------------------------

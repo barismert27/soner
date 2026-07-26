@@ -558,16 +558,27 @@
             <form id="expense-form" class="space-y-5">
                 <!-- Ödeyen Ortak / Hekim -->
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Ödeyen Ortak / Hekim</label>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-medium text-slate-600">Ödeyen Ortak / Hekim</label>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="addExpenseDoctor()" title="Yeni doktor/ortak ekle" class="text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition-all border-none cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-plus text-[11px]"></i> Ekle
+                            </button>
+                            <button type="button" onclick="deleteExpenseDoctor()" title="Seçili doktoru listeden sil" class="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-all border-none cursor-pointer flex items-center gap-1">
+                                <i class="fa-regular fa-trash-can text-[11px]"></i> Sil
+                            </button>
+                        </div>
+                    </div>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i class="fa-solid fa-user-doctor text-slate-400"></i>
                         </div>
                         <select id="expense-funder" required class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none text-slate-800 appearance-none">
                             <option value="" disabled selected>Ödemeyi Yapan Doktoru Seçin</option>
+                            <option value="Soner Başyıldız">Soner Başyıldız (Ana Hekim)</option>
                             <option value="Rıdvan">Rıdvan</option>
                             <option value="Tamer Başyıldız">Tamer Başyıldız</option>
-                            <option value="Soner Başyıldız">Soner Başyıldız</option>
+                            <option value="Hakan">Hakan</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
@@ -625,40 +636,81 @@
             </form>
         </div>
 
-        <!-- SAĞ KOLON: Geçmiş Giderler Tablosu -->
-        <div class="xl:col-span-8 w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
+        <!-- SAĞ KOLON: Ortak Özetleri ve Geçmiş Giderler Tablosu -->
+        <div class="xl:col-span-8 w-full flex flex-col gap-8">
             
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-slate-800 m-0 border-none pb-0">Geçmiş Giderler</h2>
-                <span class="text-xs font-medium bg-slate-100 text-slate-600 py-1 px-3 rounded-full">Son Kayıtlar</span>
+            <!-- 1. KART: ORTAK / HEKİM GİDER ÖZET TABLOSU -->
+            <div class="w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
+                <div class="flex flex-wrap justify-between items-center gap-4 mb-5 pb-4 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 m-0 border-none pb-0 flex items-center gap-2">
+                            <i class="fa-solid fa-users-between-lines text-brand-500"></i> Ortak / Hekim Gider Özet Tablosu
+                        </h2>
+                        <p class="text-xs text-slate-500 m-0 mt-1">Her hekimin ödediği tüm gider kalemleri ve toplam harcama miktarları</p>
+                    </div>
+                    <button type="button" onclick="generateDoctorExpensesSummaryPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-sm transition-all border-none cursor-pointer flex items-center gap-2 hover:shadow-md">
+                        <i class="fa-solid fa-file-pdf text-sm"></i> Bu Tabloyu PDF İndir
+                    </button>
+                </div>
+
+                <div class="w-full overflow-x-auto relative custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[700px] m-0">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-y border-slate-200">
+                                <th class="py-3 px-4 w-1/4 border-none text-left">Ortak / Hekim</th>
+                                <th class="py-3 px-4 w-1/2 border-none text-left">Ödediği Tüm Giderler & Açıklamalar</th>
+                                <th class="py-3 px-3 w-1/12 border-none text-center">Fiş</th>
+                                <th class="py-3 px-4 w-1/6 border-none text-right">Toplam Tutar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doctor-expenses-summary-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- JS ile Dinamik Doldurulacak -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-900 text-white font-bold text-sm">
+                                <td colspan="2" class="py-3 px-4 border-none text-right">GENEL TOPLAM HARCAMA:</td>
+                                <td id="summary-total-count" class="py-3 px-3 border-none text-center text-brand-300">0 Fiş</td>
+                                <td id="summary-total-amount" class="py-3 px-4 border-none text-right text-emerald-400 text-base">0,00 ₺</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
 
-            <!-- TABLO KESİLMESİNİ VE KIRPILMASINI ÖNLEYEN WRAPPER -->
-            <div class="w-full overflow-x-auto relative custom-scrollbar">
-                <table class="w-full text-left border-collapse min-w-[700px] m-0">
-                    <thead>
-                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-y border-slate-200">
-                            <th class="py-3 px-4 font-medium border-none text-left">Belge No</th>
-                            <th class="py-3 px-4 font-medium border-none text-left">Tarih</th>
-                            <th class="py-3 px-4 font-medium border-none text-left">Ödeyen Ortak</th>
-                            <th class="py-3 px-4 font-medium border-none text-left">Ödeme Yapılan Kişi/Kurum</th>
-                            <th class="py-3 px-4 font-medium border-none text-left">Açıklama</th>
-                            <th class="py-3 px-4 font-medium border-none text-right">Tutar</th>
-                            <th class="py-3 px-4 font-medium border-none text-center">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expense-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
-                        <!-- JS ile Doldurulacak -->
-                    </tbody>
-                </table>
-                
-                <!-- Boş Durum -->
-                <div id="expense-empty-state" class="hidden flex-col items-center justify-center py-12 text-center w-full">
-                    <div class="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-2xl mb-3">
-                        <i class="fa-regular fa-folder-open"></i>
+            <!-- 2. KART: GEÇMİŞ GİDERLER TABLOSU (TÜM LİSTE) -->
+            <div class="w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800 m-0 border-none pb-0">Geçmiş Giderler Logu</h2>
+                    <span class="text-xs font-medium bg-slate-100 text-slate-600 py-1 px-3 rounded-full">Son Kayıtlar</span>
+                </div>
+
+                <!-- TABLO KESİLMESİNİ VE KIRPILMASINI ÖNLEYEN WRAPPER -->
+                <div class="w-full overflow-x-auto relative custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[700px] m-0">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-y border-slate-200">
+                                <th class="py-3 px-4 font-medium border-none text-left">Belge No</th>
+                                <th class="py-3 px-4 font-medium border-none text-left">Tarih</th>
+                                <th class="py-3 px-4 font-medium border-none text-left">Ödeyen Ortak</th>
+                                <th class="py-3 px-4 font-medium border-none text-left">Ödeme Yapılan Kişi/Kurum</th>
+                                <th class="py-3 px-4 font-medium border-none text-left">Açıklama</th>
+                                <th class="py-3 px-4 font-medium border-none text-right">Tutar</th>
+                                <th class="py-3 px-4 font-medium border-none text-center">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expense-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- JS ile Doldurulacak -->
+                        </tbody>
+                    </table>
+                    
+                    <!-- Boş Durum -->
+                    <div id="expense-empty-state" class="hidden flex-col items-center justify-center py-12 text-center w-full">
+                        <div class="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center text-2xl mb-3">
+                            <i class="fa-regular fa-folder-open"></i>
+                        </div>
+                        <p class="text-slate-500 font-medium m-0">Henüz kayıtlı bir gider yok.</p>
+                        <p class="text-slate-400 text-xs mt-1 m-0">Sol taraftaki formu kullanarak ekleyebilirsiniz.</p>
                     </div>
-                    <p class="text-slate-500 font-medium m-0">Henüz kayıtlı bir gider yok.</p>
-                    <p class="text-slate-400 text-xs mt-1 m-0">Sol taraftaki formu kullanarak ekleyebilirsiniz.</p>
                 </div>
             </div>
 
@@ -765,8 +817,13 @@
   <!-- ================================================== -->
   <div class="modal-overlay" id="doctor-detail-modal">
     <div class="modal-content" style="max-width: 900px;">
-      <div class="modal-header">
-        <h3 id="doc-modal-title">Cari Hesap Detayı</h3>
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <h3 id="doc-modal-title" style="margin: 0;">Cari Hesap Detayı</h3>
+        <div style="display: flex; align-items: center; gap: 10px; margin-left: auto; margin-right: 15px;">
+          <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; background: #6366f1; color: white; border: none; cursor: pointer; border-radius: 8px; display: flex; items-center gap: 5px;" onclick="downloadDetailedCariPDFFromModal()">
+            <i class="fa-solid fa-file-pdf"></i> Ekstre & İş Dökümü PDF
+          </button>
+        </div>
         <span class="modal-close" onclick="closeModal('doctor-detail-modal')">&times;</span>
       </div>
       
