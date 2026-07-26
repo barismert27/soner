@@ -639,45 +639,7 @@
         <!-- SAĞ KOLON: Ortak Özetleri ve Geçmiş Giderler Tablosu -->
         <div class="xl:col-span-8 w-full flex flex-col gap-8">
             
-            <!-- 1. KART: ORTAK / HEKİM GİDER ÖZET TABLOSU -->
-            <div class="w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
-                <div class="flex flex-wrap justify-between items-center gap-4 mb-5 pb-4 border-b border-slate-100">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-800 m-0 border-none pb-0 flex items-center gap-2">
-                            <i class="fa-solid fa-users-between-lines text-brand-500"></i> Ortak / Hekim Gider Özet Tablosu
-                        </h2>
-                        <p class="text-xs text-slate-500 m-0 mt-1">Her hekimin ödediği tüm gider kalemleri ve toplam harcama miktarları</p>
-                    </div>
-                    <button type="button" onclick="generateDoctorExpensesSummaryPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-sm transition-all border-none cursor-pointer flex items-center gap-2 hover:shadow-md">
-                        <i class="fa-solid fa-file-pdf text-sm"></i> Bu Tabloyu PDF İndir
-                    </button>
-                </div>
-
-                <div class="w-full overflow-x-auto relative custom-scrollbar">
-                    <table class="w-full text-left border-collapse min-w-[700px] m-0">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-y border-slate-200">
-                                <th class="py-3 px-4 w-1/4 border-none text-left">Ortak / Hekim</th>
-                                <th class="py-3 px-4 w-1/2 border-none text-left">Ödediği Tüm Giderler & Açıklamalar</th>
-                                <th class="py-3 px-3 w-1/12 border-none text-center">Fiş</th>
-                                <th class="py-3 px-4 w-1/6 border-none text-right">Toplam Tutar</th>
-                            </tr>
-                        </thead>
-                        <tbody id="doctor-expenses-summary-body" class="divide-y divide-slate-100 text-sm text-slate-700">
-                            <!-- JS ile Dinamik Doldurulacak -->
-                        </tbody>
-                        <tfoot>
-                            <tr class="bg-slate-900 text-white font-bold text-sm">
-                                <td colspan="2" class="py-3 px-4 border-none text-right">GENEL TOPLAM HARCAMA:</td>
-                                <td id="summary-total-count" class="py-3 px-3 border-none text-center text-brand-300">0 Fiş</td>
-                                <td id="summary-total-amount" class="py-3 px-4 border-none text-right text-emerald-400 text-base">0,00 ₺</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 2. KART: GEÇMİŞ GİDERLER TABLOSU (TÜM LİSTE) -->
+            <!-- 1. KART: GEÇMİŞ GİDERLER TABLOSU (TÜM LİSTE) - ÜSTTE -->
             <div class="w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-slate-800 m-0 border-none pb-0">Geçmiş Giderler Logu</h2>
@@ -711,6 +673,45 @@
                         <p class="text-slate-500 font-medium m-0">Henüz kayıtlı bir gider yok.</p>
                         <p class="text-slate-400 text-xs mt-1 m-0">Sol taraftaki formu kullanarak ekleyebilirsiniz.</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- 2. KART: ORTAK / HEKİM GİDER ÖZET TABLOSU - ALTTA -->
+            <div class="w-full bg-white rounded-2xl shadow-sm p-6 border border-slate-200 flex flex-col">
+                <div class="flex flex-wrap justify-between items-center gap-4 mb-5 pb-4 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 m-0 border-none pb-0 flex items-center gap-2">
+                            <i class="fa-solid fa-users-between-lines text-brand-500"></i> Ortak / Hekim Gider Özet Tablosu
+                        </h2>
+                        <p class="text-xs text-slate-500 m-0 mt-1">Hekimlerin gider fiş sayıları ve toplam harcama miktarları</p>
+                    </div>
+                    <button type="button" onclick="generateDoctorExpensesSummaryPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-sm transition-all border-none cursor-pointer flex items-center gap-2 hover:shadow-md">
+                        <i class="fa-solid fa-file-pdf text-sm"></i> Genel Raporu PDF İndir
+                    </button>
+                </div>
+
+                <div class="w-full overflow-x-auto relative custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[600px] m-0">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-y border-slate-200">
+                                <th class="py-3 px-4 w-5/12 border-none text-left">Ortak / Hekim</th>
+                                <th class="py-3 px-3 w-2/12 border-none text-center">Fiş Sayısı</th>
+                                <th class="py-3 px-4 w-3/12 border-none text-right">Toplam Tutar</th>
+                                <th class="py-3 px-4 w-2/12 border-none text-center">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doctor-expenses-summary-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- JS ile Dinamik Doldurulacak -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-900 text-white font-bold text-sm">
+                                <td class="py-3 px-4 border-none text-right">GENEL TOPLAM:</td>
+                                <td id="summary-total-count" class="py-3 px-3 border-none text-center text-brand-300">0 Fiş</td>
+                                <td id="summary-total-amount" class="py-3 px-4 border-none text-right text-emerald-400 text-base">0,00 ₺</td>
+                                <td class="py-3 px-4 border-none"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
 

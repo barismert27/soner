@@ -985,33 +985,12 @@ document.addEventListener('DOMContentLoaded', () => {
       grandCount += count;
       grandTotal += totalAmount;
 
-      let expensesHTML = '';
-      if (count === 0) {
-        expensesHTML = '<span class="text-slate-400 italic text-xs">Henüz ödediği gider bulunmamaktadır.</span>';
-      } else {
-        expensesHTML = '<ul class="space-y-2 m-0 p-0 list-none">';
-        docExpenses.forEach(exp => {
-          const dateObj = new Date(exp.date);
-          const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
-          const formattedAmt = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          expensesHTML += `
-            <li class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs hover:bg-slate-100/80 transition-all">
-              <div>
-                <strong class="text-slate-800 font-semibold">${exp.desc || 'Gider'}</strong>
-                <span class="text-slate-500 block text-[11px] mt-0.5"><i class="fa-regular fa-user text-[10px] mr-1"></i>Ödenen: ${exp.empName || '-'} | <i class="fa-regular fa-calendar text-[10px] mx-1"></i>${formattedDate}</span>
-              </div>
-              <span class="font-bold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 whitespace-nowrap ml-2">${formattedAmt} ₺</span>
-            </li>
-          `;
-        });
-        expensesHTML += '</ul>';
-      }
-
       const formattedTotal = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
       const isSoner = docName === 'Soner Başyıldız';
+      const escapedDocName = docName.replace(/'/g, "\\'");
 
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-50/50 transition-colors align-top";
+      tr.className = "hover:bg-slate-50/50 transition-colors align-middle";
       tr.innerHTML = `
         <td class="py-4 px-4 font-bold text-slate-800 border-b border-slate-100">
           <div class="flex items-center gap-2">
@@ -1024,12 +1003,16 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
         </td>
-        <td class="py-4 px-4 border-b border-slate-100">${expensesHTML}</td>
         <td class="py-4 px-3 text-center font-medium border-b border-slate-100">
           <span class="bg-slate-100 text-slate-700 text-xs font-bold py-1 px-2.5 rounded-full inline-block">${count} Adet</span>
         </td>
         <td class="py-4 px-4 text-right border-b border-slate-100">
           <span class="text-base font-extrabold ${totalAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}">${formattedTotal}</span>
+        </td>
+        <td class="py-4 px-4 text-center border-b border-slate-100">
+          <button type="button" onclick="generateSingleDoctorExpensesPDF('${escapedDocName}')" class="bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white text-xs font-semibold py-1.5 px-3 rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 mx-auto" style="display: inline-flex; align-items: center;" title="${docName} harcama dökümünü indir">
+            <i class="fa-solid fa-file-pdf"></i> PDF Raporu
+          </button>
         </td>
       `;
       summaryBody.appendChild(tr);
@@ -1040,7 +1023,154 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.renderDoctorExpensesSummary = renderDoctorExpensesSummary;
 
-  // ORTAK GİDER ÖZET TABLOSUNU PDF OLARAK İNDİRME METODU
+  // BİREYSEL HEKİM HARCAMA PDF RAPORU ÜRETME METODU
+  window.generateSingleDoctorExpensesPDF = function(docName) {
+    const docExpenses = localExpenses.filter(e => e.funder === docName);
+    const count = docExpenses.length;
+    const totalAmount = docExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+    const nowStr = new Date().toLocaleString('tr-TR');
+    const dateFileStr = new Date().toISOString().split('T')[0];
+
+    let itemsHTML = '';
+    if (count === 0) {
+      itemsHTML = `
+        <tr>
+          <td colspan="5" style="padding: 15px; text-align: center; color: #64748b; font-style: italic; font-size: 12px; border: 1px solid #cbd5e1;">
+            Bu hekime ait kayıtlı tediye/harcama bulunmamaktadır.
+          </td>
+        </tr>
+      `;
+    } else {
+      docExpenses.forEach((exp, idx) => {
+        const dateObj = new Date(exp.date);
+        const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
+        const formattedAmt = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+        itemsHTML += `
+          <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px; page-break-inside: avoid;">
+            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${idx + 1}</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${formattedDate}</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>${exp.desc || 'Gider'}</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">${exp.empName || '-'}</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">${formattedAmt}</td>
+          </tr>
+        `;
+      });
+    }
+
+    const formattedTotal = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+    const isSoner = docName === 'Soner Başyıldız';
+
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = `
+      <div id="single-doc-pdf-template" style="width: 210mm; background: white; padding: 15mm; font-family: 'Inter', sans-serif; color: #1e293b; box-sizing: border-box;">
+        
+        <!-- HEADER -->
+        <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; border-collapse: collapse;">
+          <tr>
+            <td style="vertical-align: middle;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
+              <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Hekim Bireysel Gider Harcama Dökümü</p>
+            </td>
+            <td style="text-align: right; vertical-align: middle; font-size: 11px; color: #475569;">
+              <div><strong>Rapor Tarihi:</strong> ${nowStr}</div>
+              <div><strong>Evrak No:</strong> #GDR-${docName.charAt(0).toUpperCase()}-${Date.now().toString().slice(-4)}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- BİLGİ KARTLARI -->
+        <div style="margin-bottom: 20px;">
+          <h2 style="margin: 0 0 8px 0; font-size: 15px; color: #0f172a; text-transform: uppercase;">HARCAMA YAPAN ORTAK/HEKİM: ${docName} (${isSoner ? 'Ana Hekim' : 'Ortak Hekim'})</h2>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+          <tr>
+            <td style="width: 50%; padding-right: 10px;">
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Kayıtlı Toplam Fiş</div>
+                <div style="font-size: 18px; font-weight: bold; color: #0f172a;">${count} Adet</div>
+              </div>
+            </td>
+            <td style="width: 50%; padding-left: 10px;">
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Toplam Harcanan Gider</div>
+                <div style="font-size: 18px; font-weight: bold; color: #15803d;">${formattedTotal}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- HARCAMA TABLOSU -->
+        <h3 style="font-size: 12px; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Bireysel Harcama Kalemleri</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #cbd5e1;">
+          <thead>
+            <tr style="background-color: #0f172a; color: white; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 8px; border: 1px solid #0f172a; text-align: center; width: 6%;">Sıra</th>
+              <th style="padding: 8px; border: 1px solid #0f172a; text-align: center; width: 18%;">Tarih</th>
+              <th style="padding: 8px; border: 1px solid #0f172a; width: 38%;">Harcama Kalemi / Açıklama</th>
+              <th style="padding: 8px; border: 1px solid #0f172a; width: 22%;">Ödeme Yapılan Kurum/Kişi</th>
+              <th style="padding: 8px; border: 1px solid #0f172a; text-align: right; width: 16%;">Tutar</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #1e293b; color: white; font-weight: bold; font-size: 12px;">
+              <td colspan="4" style="padding: 10px; text-align: right; border: 1px solid #1e293b;">TOPLAM:</td>
+              <td style="padding: 10px; text-align: right; border: 1px solid #1e293b; color: #34d399;">${formattedTotal}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- İMZA ALANI -->
+        <div style="margin-top: 50px; page-break-inside: avoid;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="width: 45%; border: 1px solid #cbd5e1; text-align: center; padding: 12px;">
+                <div style="font-weight: bold; font-size: 12px; color: #0f172a; margin-bottom: 6px;">HARCAMA YAPAN ORTAK / HEKİM</div>
+                <div style="font-size: 11px; color: #1e293b; font-weight: bold; margin-bottom: 35px;">${docName}</div>
+                <div style="font-size: 10px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">İmza / Tarih</div>
+              </td>
+              <td style="width: 10%;"></td>
+              <td style="width: 45%; border: 1px solid #cbd5e1; text-align: center; padding: 12px;">
+                <div style="font-weight: bold; font-size: 12px; color: #0f172a; margin-bottom: 6px;">BAŞYILDIZ DİŞ STÜDYOSU</div>
+                <div style="font-size: 11px; color: #64748b; margin-bottom: 35px;">Muhasebe / Laboratuvar Onayı</div>
+                <div style="font-size: 10px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 6px;">Kaşe & İmza</div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 35px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+          Başyıldız Diş Stüdyosu Laboratuvar ve Hekim Takip Sistemleri • Elektronik Tediye Dökümü
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const element = container.querySelector('#single-doc-pdf-template');
+    const opt = {
+      margin:       5,
+      filename:     `Basyildiz_Harcama_Dokumu_${docName.replace(/\s+/g, '_')}_${dateFileStr}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      document.body.removeChild(container);
+      notifySuccess(`"${docName}" harcama dökümü PDF olarak indirildi.`);
+    }).catch(err => {
+      console.error('PDF oluşturma hatası:', err);
+      document.body.removeChild(container);
+    });
+  };
+
+  // ORTAK GİDER GENEL ÖZET TABLOSUNU PDF OLARAK İNDİRME METODU (TABLO GÖRÜNÜMLÜ TEMİZ RAPOR)
   window.generateDoctorExpensesSummaryPDF = function() {
     let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
     localExpenses.forEach(exp => {
@@ -1063,39 +1193,21 @@ document.addEventListener('DOMContentLoaded', () => {
       grandCount += count;
       grandTotal += totalAmount;
 
-      let itemsHTML = '';
-      if (count === 0) {
-        itemsHTML = '<div style="color: #64748b; font-style: italic; font-size: 11px;">Ödenen gider kaydı yok.</div>';
-      } else {
-        docExpenses.forEach((exp, idx) => {
-          const dateObj = new Date(exp.date);
-          const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
-          const formattedAmt = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          itemsHTML += `
-            <div style="padding: 6px 0; border-bottom: ${idx === docExpenses.length - 1 ? 'none' : '1px dashed #e2e8f0'}; font-size: 11px; display: flex; justify-content: space-between;">
-              <span><strong>• ${exp.desc || 'Gider'}</strong> <span style="color: #64748b;">(Ödenen: ${exp.empName || '-'} | Tarih: ${formattedDate})</span></span>
-              <strong style="color: #0f172a; margin-left: 10px;">${formattedAmt} ₺</strong>
-            </div>
-          `;
-        });
-      }
-
       const formattedTotal = totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
       const isSoner = docName === 'Soner Başyıldız';
 
       tableRowsHTML += `
-        <tr style="border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;">
-          <td style="padding: 12px 10px; vertical-align: top; width: 25%;">
-            <strong style="font-size: 13px; color: #0f172a; display: block;">${isSoner ? '👑 ' : '👨‍⚕️ '}${docName}</strong>
-            <span style="font-size: 11px; color: #64748b;">${isSoner ? 'Ana Hekim / Yetkili' : 'Ortak Hekim'}</span>
+        <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px; page-break-inside: avoid;">
+          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">
+            ${isSoner ? '👑 ' : '👨‍⚕️ '}${docName}
           </td>
-          <td style="padding: 12px 10px; vertical-align: top; width: 50%;">
-            ${itemsHTML}
+          <td style="padding: 10px; border: 1px solid #cbd5e1; color: #475569;">
+            ${isSoner ? 'Ana Hekim / Kurucu' : 'Ortak Hekim'}
           </td>
-          <td style="padding: 12px 10px; vertical-align: top; width: 10%; text-align: center; font-weight: bold; font-size: 12px; color: #334155;">
-            ${count} Fiş
+          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">
+            ${count} Adet
           </td>
-          <td style="padding: 12px 10px; vertical-align: top; width: 15%; text-align: right; font-weight: bold; font-size: 13px; color: ${totalAmount > 0 ? '#059669' : '#64748b'};">
+          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: ${totalAmount > 0 ? '#059669' : '#64748b'};">
             ${formattedTotal}
           </td>
         </tr>
@@ -1109,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     signDocs.forEach(d => {
       signaturesHTML += `
         <td style="width: ${100 / signDocs.length}%; text-align: center; padding: 10px;">
-          <div style="border-top: 1px solid #000; paddingTop: 6px; font-weight: bold; font-size: 11px; color: #0f172a;">
+          <div style="border-top: 1px solid #000; padding-top: 6px; font-weight: bold; font-size: 11px; color: #0f172a;">
             ${d}
           </div>
           <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Kaşe & İmza</div>
@@ -1129,39 +1241,39 @@ document.addEventListener('DOMContentLoaded', () => {
           <tr>
             <td style="vertical-align: middle;">
               <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">BAŞYILDIZ DİŞ STÜDYOSU</h1>
-              <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Ortaklar & Hekimler Gider ve Cari Harcama Raporu</p>
+              <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;">Ortaklar & Hekimler Genel Gider Harcama Raporu</p>
             </td>
             <td style="text-align: right; vertical-align: middle; font-size: 11px; color: #475569;">
               <div><strong>Rapor Tarihi:</strong> ${nowStr}</div>
-              <div style="margin-top: 2px;"><strong>Rapor No:</strong> #GR-${Date.now().toString().slice(-4)}</div>
+              <div><strong>Rapor No:</strong> #GR-${Date.now().toString().slice(-4)}</div>
             </td>
           </tr>
         </table>
 
         <!-- BİLGİ ÖZETİ -->
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between;">
-          <span>Bu raporda, stüdyomuz ortaklarının ve hekimlerinin bireysel harcama kalemleri ve toplam bakiye dökümleri yer almaktadır.</span>
-          <strong>Toplam: ${grandCount} Fiş / Kayıt</strong>
+          <span>Stüdyo ortaklarının ve hekimlerinin toplam gider tediye fiş adetleri ve harcama döküm mutabakat tutarları.</span>
+          <strong>Toplam Fiş: ${grandCount} Adet</strong>
         </div>
 
         <!-- ANA TABLO -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #cbd5e1;">
           <thead>
-            <tr style="background-color: #0f172a; color: white; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 25%;">Ortak / Hekim</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 50%;">Ödenen Tüm Giderler & Açıklamaları</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 10%; text-align: center;">Fiş</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 15%; text-align: right;">Toplam Tutar</th>
+            <tr style="background-color: #0f172a; color: white; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 35%;">Ortak / Hekim</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 25%;">Unvan</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 20%; text-align: center;">Toplam Fiş</th>
+              <th style="padding: 10px; border: 1px solid #0f172a; width: 20%; text-align: right;">Toplam Tutar</th>
             </tr>
           </thead>
           <tbody>
             ${tableRowsHTML}
           </tbody>
           <tfoot>
-            <tr style="background-color: #1e293b; color: white; font-weight: bold; font-size: 14px;">
-              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #1e293b;">GENEL TOPLAM HARCAMA:</td>
+            <tr style="background-color: #1e293b; color: white; font-weight: bold; font-size: 13px;">
+              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #1e293b;">GENEL TOPLAM GİDER:</td>
               <td style="padding: 12px; text-align: center; border: 1px solid #1e293b; color: #fcd34d;">${grandCount} Adet</td>
-              <td style="padding: 12px; text-align: right; border: 1px solid #1e293b; color: #34d399; font-size: 16px;">${formattedGrandTotal}</td>
+              <td style="padding: 12px; text-align: right; border: 1px solid #1e293b; color: #34d399; font-size: 14px;">${formattedGrandTotal}</td>
             </tr>
           </tfoot>
         </table>
@@ -1185,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const element = container.querySelector('#doctor-summary-pdf-template');
     const opt = {
       margin:       5,
-      filename:     `Basyildiz_Ortak_Gider_Raporu_${dateFileStr}.pdf`,
+      filename:     `Basyildiz_Genel_Gider_Ozet_Raporu_${dateFileStr}.pdf`,
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1193,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     html2pdf().set(opt).from(element).save().then(() => {
       document.body.removeChild(container);
-      notifySuccess('Ortak gider özet raporu PDF olarak başarıyla indirildi.');
+      notifySuccess('Genel ortak gider özet raporu PDF olarak başarıyla indirildi.');
     }).catch(err => {
       console.error('PDF oluşturma hatası:', err);
       document.body.removeChild(container);
@@ -1434,32 +1546,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       
-      let paymentsRowsHTML = '';
-      if (payments.length === 0) {
-        paymentsRowsHTML = `
-          <tr>
-            <td colspan="4" style="padding: 10px; text-align: center; color: #64748b; font-style: italic; font-size: 11px; border: 1px solid #cbd5e1;">
-              Kayıtlı herhangi bir ödeme tahsilatı bulunmamaktadır.
-            </td>
-          </tr>
-        `;
-      } else {
-        payments.forEach((p, index) => {
-          const dateObj = new Date(p.payment_date);
-          const formattedDate = isNaN(dateObj.getTime()) ? p.payment_date : dateObj.toLocaleDateString('tr-TR');
-          const formattedAmt = parseFloat(p.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
-          
-          paymentsRowsHTML += `
-            <tr style="border-bottom: 1px solid #cbd5e1; font-size: 11px; page-break-inside: avoid;">
-              <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${index + 1}</td>
-              <td style="padding: 6px; border: 1px solid #cbd5e1;">${formattedDate}</td>
-              <td style="padding: 6px; border: 1px solid #cbd5e1;">${p.notes || 'Cari Ödeme'}</td>
-              <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: #059669;">+ ${formattedAmt}</td>
-            </tr>
-          `;
-        });
-      }
-      
       const container = document.createElement('div');
       container.style.position = 'absolute';
       container.style.left = '-9999px';
@@ -1527,22 +1613,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </thead>
             <tbody>
               ${jobsRowsHTML}
-            </tbody>
-          </table>
-
-          <!-- ÖDEMELER GEÇMİŞİ TABLOSU -->
-          <h3 style="font-size: 13px; color: #0f172a; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Tahsilat Geçmişi (Ödemeler)</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #cbd5e1;">
-            <thead>
-              <tr style="background-color: #1e293b; color: white; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
-                <th style="padding: 6px; border: 1px solid #1e293b; text-align: center; width: 5%;">Sıra</th>
-                <th style="padding: 6px; border: 1px solid #1e293b; width: 20%;">Ödeme Tarihi</th>
-                <th style="padding: 6px; border: 1px solid #1e293b; width: 55%;">Not / Ödeme Türü</th>
-                <th style="padding: 6px; border: 1px solid #1e293b; text-align: right; width: 20%;">Tutar</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${paymentsRowsHTML}
             </tbody>
           </table>
 
