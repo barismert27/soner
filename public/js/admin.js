@@ -718,18 +718,16 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalPaid = 0;
         let balance = 0;
 
-        if (selectedCariMonth === 'all') {
-          totalDebt = parseFloat(doc.total_debt || 0);
-          totalPaid = parseFloat(doc.total_paid || 0);
-          balance = parseFloat(doc.balance || 0);
-        } else {
-          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date, j.created_at) === selectedCariMonth);
-          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date, p.created_at) === selectedCariMonth);
-          
-          totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
-          totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-          balance = totalDebt - totalPaid;
-        }
+        const docJobs = selectedCariMonth === 'all' 
+          ? allJobs.filter(j => j.doctor_id == doc.id) 
+          : allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date, j.created_at) === selectedCariMonth);
+        const docPayments = selectedCariMonth === 'all' 
+          ? allPayments.filter(p => p.doctor_id == doc.id) 
+          : allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date, p.created_at) === selectedCariMonth);
+        
+        totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
+        totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        balance = totalDebt - totalPaid;
 
         const isMainDoc = doc.name === 'Soner Başyıldız';
 
@@ -844,13 +842,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       
       const doc = data.doctor;
+      const jobsList = data.jobs || [];
+      const paymentsList = data.payments || [];
+      let calcDebt = jobsList.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
+      let calcPaid = paymentsList.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+      if (calcDebt === 0 && parseFloat(doc.total_debt || 0) > 0) calcDebt = parseFloat(doc.total_debt || 0);
+      if (calcPaid === 0 && parseFloat(doc.total_paid || 0) > 0) calcPaid = parseFloat(doc.total_paid || 0);
+      const calcBalance = calcDebt - calcPaid;
+
       document.getElementById('doc-modal-title').textContent = `${doc.name} - Cari Hesap Ekstresi`;
-      document.getElementById('doc-modal-total-debt').textContent = formatCurrency(doc.total_debt);
-      document.getElementById('doc-modal-total-paid').textContent = formatCurrency(doc.total_paid);
+      document.getElementById('doc-modal-total-debt').textContent = formatCurrency(calcDebt);
+      document.getElementById('doc-modal-total-paid').textContent = formatCurrency(calcPaid);
       
       const balanceEl = document.getElementById('doc-modal-balance');
-      balanceEl.textContent = formatCurrency(doc.balance);
-      if (doc.balance > 0) {
+      balanceEl.textContent = formatCurrency(calcBalance);
+      if (calcBalance > 0) {
         balanceEl.style.color = 'var(--accent)';
       } else {
         balanceEl.style.color = 'var(--success)';
@@ -859,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Ödeme formu gizli alanını ayarla
       const idEl = document.getElementById('payment-doctor-id');
       idEl.value = doc.id;
-      idEl.dataset.balance = doc.balance; // Bakiye verisini depoluyoruz
+      idEl.dataset.balance = calcBalance; // Bakiye verisini depoluyoruz
 
       document.getElementById('payment-amount').value = '';
       document.getElementById('payment-date').value = getTodayLocalDateStr();

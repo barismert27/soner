@@ -58,14 +58,14 @@ app.use(express.urlencoded({ extended: true }));
 app.post('/login', (req, res) => {
   if (req.body.username === 'soner' && req.body.password === 'soner7610') {
     res.cookie('admin_session', 'active', { httpOnly: true });
-    res.redirect('/admin.html');
+    res.redirect('/admin');
   } else {
-    res.redirect('/login.html?error=1');
+    res.redirect('/login?error=1');
   }
 });
 
 // Yönetim Paneli Şifre Koruması (Modern Cookie)
-app.use('/admin.html', (req, res, next) => {
+app.use(['/admin', '/admin.html'], (req, res, next) => {
   const cookies = req.headers.cookie || '';
   if (cookies.includes('admin_session=active')) {
     // İçeri alındıktan hemen sonra çerezi yok ediyoruz.
@@ -73,11 +73,11 @@ app.use('/admin.html', (req, res, next) => {
     res.clearCookie('admin_session');
     return next();
   }
-  res.redirect('/login.html');
+  res.redirect('/login');
 });
 
-// Statik Dosyalar (Frontend ve Admin)
-app.use(express.static(path.join(__dirname, 'public')));
+// Statik Dosyalar (Frontend ve Admin) - extensions:['html'] ile clean URL desteği
+app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ----------------------------------------------------
 // DOKTOR / KLİNİK APIS
@@ -89,6 +89,20 @@ app.get('/api/doctors', async (req, res) => {
     const doctors = await dbAll('SELECT * FROM doctors ORDER BY name ASC');
     const jobs = await dbAll('SELECT id, doctor_id, total_price, entry_date, created_at FROM jobs');
     const payments = await dbAll('SELECT id, doctor_id, amount, payment_date, created_at FROM payments');
+    
+    // Her doktorun borç / ödeme / bakiyesini her zaman canlı olarak jobs ve payments tablolarından hesapla.
+    // Asla doctors tablosundaki statik değerlere güvenme; bu değerler zamanla çarpılabilir.
+    doctors.forEach(doc => {
+      const calcDebt  = jobs.filter(j => j.doctor_id == doc.id)
+                            .reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
+      const calcPaid  = payments.filter(p => p.doctor_id == doc.id)
+                                .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+      // Her koşulda üzer-yaz; hiçbir kayıt dışarıda kalmıyor.
+      doc.total_debt  = calcDebt;
+      doc.total_paid  = calcPaid;
+      doc.balance     = calcDebt - calcPaid;
+    });
+
     res.json({ doctors, jobs, payments });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -124,6 +138,13 @@ app.get('/api/doctors/:id', async (req, res) => {
     const jobs = await dbAll('SELECT * FROM jobs WHERE doctor_id = ? ORDER BY created_at DESC', [req.params.id]);
     const payments = await dbAll('SELECT * FROM payments WHERE doctor_id = ? ORDER BY payment_date DESC, id DESC', [req.params.id]);
     const statements = await dbAll('SELECT * FROM doctor_statements WHERE doctor_id = ? ORDER BY created_at DESC', [req.params.id]);
+    
+    const calcDebt = jobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
+    const calcPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+    if (calcDebt > 0 || parseFloat(doctor.total_debt || 0) === 0) doctor.total_debt = calcDebt;
+    if (calcPaid > 0 || parseFloat(doctor.total_paid || 0) === 0) doctor.total_paid = calcPaid;
+    doctor.balance = parseFloat(doctor.total_debt || 0) - parseFloat(doctor.total_paid || 0);
+
     res.json({ doctor, jobs, payments, statements });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
