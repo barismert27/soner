@@ -103,7 +103,7 @@ app.delete('/api/doctors/:id', async (req, res) => {
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doktor bulunamadı.' });
     }
-    if (doctor.name === 'Soner Başyıldız' || docId == 1) {
+    if (doctor.name === 'Soner Başyıldız') {
       return res.status(400).json({ success: false, message: 'Soner Başyıldız ana doktor olduğu için silinemez.' });
     }
 

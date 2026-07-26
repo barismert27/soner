@@ -580,6 +580,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('filter-doctor').addEventListener('change', fetchJobs);
   document.getElementById('filter-status').addEventListener('change', fetchJobs);
 
+  const getTodayLocalDateStr = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+
   let selectedCariMonth = 'all';
 
   const formatMonthYearStr = (yearMonthStr) => {
@@ -603,42 +609,70 @@ document.addEventListener('DOMContentLoaded', () => {
       const tabsContainer = document.getElementById('cari-month-tabs');
       if (!body) return;
 
-      // 1. Mevcut tüm ayları topla ve ay filtre butonlarını çiz
-      const monthSet = new Set();
-      allJobs.forEach(j => {
-        if (j.entry_date && j.entry_date.length >= 7) {
-          monthSet.add(j.entry_date.substring(0, 7));
-        }
-      });
-      allPayments.forEach(p => {
-        if (p.payment_date && p.payment_date.length >= 7) {
-          monthSet.add(p.payment_date.substring(0, 7));
-        }
-      });
-
-      // Şimdiki ayı da ekle
-      const currentYM = new Date().toISOString().substring(0, 7);
-      monthSet.add(currentYM);
-
-      const sortedMonths = Array.from(monthSet).sort().reverse();
-      const monthOptions = ['all', ...sortedMonths];
-
       if (tabsContainer) {
         tabsContainer.innerHTML = '';
-        monthOptions.forEach(mKey => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          const isActive = selectedCariMonth === mKey;
-          btn.className = isActive 
-            ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white border-none cursor-pointer shadow-sm transition-all'
-            : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer transition-all';
-          btn.textContent = formatMonthYearStr(mKey);
-          btn.onclick = () => {
-            selectedCariMonth = mKey;
-            fetchDoctors();
-          };
-          tabsContainer.appendChild(btn);
+
+        // 1. "Tüm Zamanlar" hızlı butonu
+        const btnAll = document.createElement('button');
+        btnAll.type = 'button';
+        btnAll.className = selectedCariMonth === 'all'
+          ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white border-none cursor-pointer shadow-sm transition-all'
+          : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer transition-all';
+        btnAll.textContent = 'Tüm Zamanlar';
+        btnAll.onclick = () => { selectedCariMonth = 'all'; fetchDoctors(); };
+        tabsContainer.appendChild(btnAll);
+
+        // 2. "Bu Ay" (Mevcut Ay) hızlı butonu
+        const currentYM = getTodayLocalDateStr().substring(0, 7);
+        const btnCurrent = document.createElement('button');
+        btnCurrent.type = 'button';
+        btnCurrent.className = selectedCariMonth === currentYM
+          ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white border-none cursor-pointer shadow-sm transition-all'
+          : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer transition-all';
+        btnCurrent.textContent = `Bu Ay (${formatMonthYearStr(currentYM)})`;
+        btnCurrent.onclick = () => { selectedCariMonth = currentYM; fetchDoctors(); };
+        tabsContainer.appendChild(btnCurrent);
+
+        // 3. Tüm Ayları Barındıran Açılır Liste (Dropdown Select)
+        const select = document.createElement('select');
+        select.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 cursor-pointer outline-none shadow-sm';
+        
+        const currentYear = new Date().getFullYear();
+        const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+        
+        let selectHTML = `<option value="">📅 Tüm 12 Aydan Seçin...</option>`;
+        yearOptions.forEach(yr => {
+          for (let m = 12; m >= 1; m--) {
+            const mStr = m < 10 ? `0${m}` : `${m}`;
+            const ymVal = `${yr}-${mStr}`;
+            const label = formatMonthYearStr(ymVal);
+            selectHTML += `<option value="${ymVal}" ${selectedCariMonth === ymVal ? 'selected' : ''}>${label}</option>`;
+          }
         });
+        select.innerHTML = selectHTML;
+        select.onchange = (e) => {
+          if (e.target.value) {
+            selectedCariMonth = e.target.value;
+            fetchDoctors();
+          }
+        };
+        tabsContainer.appendChild(select);
+
+        // 4. Özel Ay/Yıl Takvim Seçicisi (Month Picker)
+        const monthInput = document.createElement('input');
+        monthInput.type = 'month';
+        monthInput.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 bg-white cursor-pointer shadow-sm';
+        monthInput.title = 'Takvimden Özel Ay ve Yıl Seçin';
+        if (selectedCariMonth !== 'all') {
+          monthInput.value = selectedCariMonth;
+        }
+        monthInput.onchange = (e) => {
+          if (e.target.value) {
+            selectedCariMonth = e.target.value;
+            fetchDoctors();
+          }
+        };
+        tabsContainer.appendChild(monthInput);
       }
 
       body.innerHTML = '';
@@ -666,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
           balance = totalDebt - totalPaid;
         }
 
-        const isMainDoc = doc.name === 'Soner Başyıldız' || doc.id == 1;
+        const isMainDoc = doc.name === 'Soner Başyıldız';
 
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -700,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const deleteDoctor = async (docId, docName) => {
-    if (docName === 'Soner Başyıldız' || docId == 1) {
+    if (docName === 'Soner Başyıldız') {
       notifyError('⚠️ Soner Başyıldız ana hekim (kurucu) olduğu için silinemez!');
       return;
     }
@@ -767,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedTeeth.clear();
     toothItems.forEach(t => t.classList.remove('selected'));
     document.querySelectorAll('.treatment-checkbox').forEach(c => c.classList.remove('checked'));
-    document.getElementById('job-entry-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('job-entry-date').value = getTodayLocalDateStr();
   };
 
   // --------------------------------------------------
@@ -797,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
       idEl.dataset.balance = doc.balance; // Bakiye verisini depoluyoruz
 
       document.getElementById('payment-amount').value = '';
-      document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('payment-date').value = getTodayLocalDateStr();
       document.getElementById('payment-notes').value = '';
 
       // Ödeme Geçmişi Listesini Doldur (One-to-Many)
@@ -1398,7 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const todayDate = new Date().toISOString().split('T')[0];
+  const todayDate = getTodayLocalDateStr();
   const expenseDateInput = document.getElementById('expense-date');
   if (expenseDateInput) expenseDateInput.value = todayDate;
 
