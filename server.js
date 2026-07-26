@@ -83,11 +83,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 // DOKTOR / KLİNİK APIS
 // ----------------------------------------------------
 
-// Tüm doktorları borç/alacak bakiyeleriyle listele
+// Tüm doktorları borç/alacak bakiyeleriyle ve ay bazlı iş/ödeme hareketleriyle listele
 app.get('/api/doctors', async (req, res) => {
   try {
     const doctors = await dbAll('SELECT * FROM doctors ORDER BY name ASC');
-    res.json(doctors);
+    const jobs = await dbAll('SELECT id, doctor_id, total_price, entry_date FROM jobs');
+    const payments = await dbAll('SELECT id, doctor_id, amount, payment_date FROM payments');
+    res.json({ doctors, jobs, payments });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Doktor/Klinik Silme
+app.delete('/api/doctors/:id', async (req, res) => {
+  try {
+    const docId = req.params.id;
+    const doctor = await dbGet('SELECT * FROM doctors WHERE id = ?', [docId]);
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doktor bulunamadı.' });
+    }
+    if (doctor.name === 'Soner Başyıldız' || docId == 1) {
+      return res.status(400).json({ success: false, message: 'Soner Başyıldız ana doktor olduğu için silinemez.' });
+    }
+
+    await dbRun('DELETE FROM doctors WHERE id = ?', [docId]);
+    res.json({ success: true, message: 'Klinik ve ilişkili tüm cari kayıtlar silindi.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

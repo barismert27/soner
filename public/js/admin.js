@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Global Durum Değişkenleri
   const selectedTeeth = new Set();
   let doctorsList = [];
+  let expenseCurrentPage = 1;
+  const expenseItemsPerPage = 6;
 
   // DOM Elemanları
   const views = document.querySelectorAll('.view-section');
@@ -578,35 +580,116 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('filter-doctor').addEventListener('change', fetchJobs);
   document.getElementById('filter-status').addEventListener('change', fetchJobs);
 
+  let selectedCariMonth = 'all';
+
+  const formatMonthYearStr = (yearMonthStr) => {
+    if (yearMonthStr === 'all') return 'Tüm Zamanlar';
+    const [year, month] = yearMonthStr.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+    return date.toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
+  };
+
   // 3. Cari Hesaplar (Doktorlar / Klinikler)
   const fetchDoctors = async () => {
     try {
       const res = await fetch('/api/doctors');
-      const docs = await res.json();
+      const data = await res.json();
+      
+      const docs = data.doctors || (Array.isArray(data) ? data : []);
+      const allJobs = data.jobs || [];
+      const allPayments = data.payments || [];
+      
       const body = document.getElementById('doctors-table-body');
+      const tabsContainer = document.getElementById('cari-month-tabs');
+      if (!body) return;
+
+      // 1. Mevcut tüm ayları topla ve ay filtre butonlarını çiz
+      const monthSet = new Set();
+      allJobs.forEach(j => {
+        if (j.entry_date && j.entry_date.length >= 7) {
+          monthSet.add(j.entry_date.substring(0, 7));
+        }
+      });
+      allPayments.forEach(p => {
+        if (p.payment_date && p.payment_date.length >= 7) {
+          monthSet.add(p.payment_date.substring(0, 7));
+        }
+      });
+
+      // Şimdiki ayı da ekle
+      const currentYM = new Date().toISOString().substring(0, 7);
+      monthSet.add(currentYM);
+
+      const sortedMonths = Array.from(monthSet).sort().reverse();
+      const monthOptions = ['all', ...sortedMonths];
+
+      if (tabsContainer) {
+        tabsContainer.innerHTML = '';
+        monthOptions.forEach(mKey => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const isActive = selectedCariMonth === mKey;
+          btn.className = isActive 
+            ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white border-none cursor-pointer shadow-sm transition-all'
+            : 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer transition-all';
+          btn.textContent = formatMonthYearStr(mKey);
+          btn.onclick = () => {
+            selectedCariMonth = mKey;
+            fetchDoctors();
+          };
+          tabsContainer.appendChild(btn);
+        });
+      }
+
       body.innerHTML = '';
 
       if (docs.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Kayıtlı doktor bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Kayıtlı doktor/klinik bulunamadı.</td></tr>';
         return;
       }
 
       docs.forEach(doc => {
+        let totalDebt = 0;
+        let totalPaid = 0;
+        let balance = 0;
+
+        if (selectedCariMonth === 'all') {
+          totalDebt = parseFloat(doc.total_debt || 0);
+          totalPaid = parseFloat(doc.total_paid || 0);
+          balance = parseFloat(doc.balance || 0);
+        } else {
+          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && j.entry_date && j.entry_date.startsWith(selectedCariMonth));
+          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && p.payment_date && p.payment_date.startsWith(selectedCariMonth));
+          
+          totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
+          totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+          balance = totalDebt - totalPaid;
+        }
+
+        const isMainDoc = doc.name === 'Soner Başyıldız' || doc.id == 1;
+
         const row = document.createElement('tr');
         row.innerHTML = `
           <td><strong>#${doc.id}</strong></td>
           <td><strong>${doc.name}</strong></td>
           <td>${doc.phone || '-'}</td>
-          <td>${formatCurrency(doc.total_debt)}</td>
-          <td>${formatCurrency(doc.total_paid)}</td>
-          <td style="color: ${doc.balance > 0 ? 'var(--accent)' : 'var(--success)'}; font-weight: 700;">
-            ${formatCurrency(doc.balance)}
+          <td>${formatCurrency(totalDebt)}</td>
+          <td>${formatCurrency(totalPaid)}</td>
+          <td style="color: ${balance > 0 ? 'var(--accent)' : 'var(--success)'}; font-weight: 700;">
+            ${formatCurrency(balance)}
           </td>
           <td>
-            <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="showDoctorDetail(${doc.id})">Cari/Ödeme Geçmişi</button>
-            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-left: 5px; background: #6366f1; color: white;" onclick="downloadDetailedCariPDF(${doc.id})">
-              <i class="fa-solid fa-file-pdf"></i> Ekstre PDF
-            </button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-primary" style="padding: 5px 10px; font-size: 11px;" onclick="showDoctorDetail(${doc.id})">Cari/Ödeme Geçmişi</button>
+              <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 11px; background: #6366f1; color: white; border: none; cursor: pointer; border-radius: 6px;" onclick="downloadDetailedCariPDF(${doc.id})">
+                <i class="fa-solid fa-file-pdf"></i> Ekstre PDF
+              </button>
+              ${!isMainDoc ? `
+                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 11px; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;" onclick="deleteDoctor(${doc.id}, '${doc.name.replace(/'/g, "\\'")}')" title="Kliniği Sil">
+                  <i class="fa-solid fa-trash"></i> Sil
+                </button>
+              ` : ''}
+            </div>
           </td>
         `;
         body.appendChild(row);
@@ -615,6 +698,28 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Doktor carileri çekilirken hata:', err);
     }
   };
+
+  const deleteDoctor = async (docId, docName) => {
+    if (docName === 'Soner Başyıldız' || docId == 1) {
+      notifyError('⚠️ Soner Başyıldız ana hekim (kurucu) olduğu için silinemez!');
+      return;
+    }
+    if (!await modernConfirm(`"${docName}" kliniğini ve bu kliniğe ait tüm geçmiş iş/ödeme kayıtlarını silmek istediğinize emin misiniz?`)) return;
+    try {
+      const res = await fetch(`/api/doctors/${docId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        notifySuccess('Klinik kaydı başarıyla silindi.');
+        fetchDoctors();
+        fetchDoctorsListOnly();
+      } else {
+        alert('Hata: ' + data.message);
+      }
+    } catch (err) {
+      console.error('Klinik silme hatası:', err);
+    }
+  };
+  window.deleteDoctor = deleteDoctor;
 
   // 4. Tüm Ödeme Loglarını Listeleme
   const fetchPayments = async () => {
@@ -1658,17 +1763,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tableBody) return;
     
     tableBody.innerHTML = '';
-    let total = 0;
+    
+    // Toplam tutarı her halükarda tüm kayıtlar üzerinden hesaplıyoruz
+    let total = localExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
 
     if (localExpenses.length === 0) {
       emptyState.classList.remove('hidden');
       emptyState.classList.add('flex');
+      
+      const pagContainer = document.getElementById('expense-pagination-container');
+      if (pagContainer) pagContainer.style.display = 'none';
     } else {
       emptyState.classList.add('hidden');
       emptyState.classList.remove('flex');
+      
+      const pagContainer = document.getElementById('expense-pagination-container');
+      if (pagContainer) pagContainer.style.display = 'flex';
 
-      localExpenses.forEach(exp => {
-        total += parseFloat(exp.amount);
+      // Sayfalama Hesaplamaları
+      const totalItems = localExpenses.length;
+      const totalPages = Math.ceil(totalItems / expenseItemsPerPage) || 1;
+      
+      if (expenseCurrentPage > totalPages) expenseCurrentPage = totalPages;
+      if (expenseCurrentPage < 1) expenseCurrentPage = 1;
+
+      const startIndex = (expenseCurrentPage - 1) * expenseItemsPerPage;
+      const endIndex = startIndex + expenseItemsPerPage;
+      const paginatedExpenses = localExpenses.slice(startIndex, endIndex);
+
+      // Sadece bu sayfanın verilerini ekrana çiz
+      paginatedExpenses.forEach(exp => {
         const dateObj = new Date(exp.date);
         const formattedDate = isNaN(dateObj.getTime()) ? exp.date : dateObj.toLocaleDateString('tr-TR');
         const formattedAmount = parseFloat(exp.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1702,13 +1826,53 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         tableBody.appendChild(tr);
       });
+
+      // Sayfalama Kontrolleri Arayüzünü Güncelle
+      const paginationInfo = document.getElementById('expense-pagination-info');
+      const pageNumberEl = document.getElementById('expense-page-number');
+      const btnPrev = document.getElementById('btn-expense-prev');
+      const btnNext = document.getElementById('btn-expense-next');
+
+      if (paginationInfo) {
+        paginationInfo.textContent = `Toplam ${totalItems} Gider, Sayfa ${expenseCurrentPage}/${totalPages}`;
+      }
+      if (pageNumberEl) {
+        pageNumberEl.textContent = expenseCurrentPage;
+      }
+      if (btnPrev) {
+        btnPrev.disabled = expenseCurrentPage === 1;
+      }
+      if (btnNext) {
+        btnNext.disabled = expenseCurrentPage === totalPages;
+      }
     }
     
-    if(totalDisplay) {
+    if (totalDisplay) {
       totalDisplay.innerText = total.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
     }
   };
   window.fetchExpenses = fetchExpenses;
+
+  // Sayfalama Butonlarına Olay Dinleyicileri (Bir kez eklenir)
+  const btnExpensePrev = document.getElementById('btn-expense-prev');
+  const btnExpenseNext = document.getElementById('btn-expense-next');
+  if (btnExpensePrev) {
+    btnExpensePrev.addEventListener('click', () => {
+      if (expenseCurrentPage > 1) {
+        expenseCurrentPage--;
+        fetchExpenses();
+      }
+    });
+  }
+  if (btnExpenseNext) {
+    btnExpenseNext.addEventListener('click', () => {
+      const totalPages = Math.ceil(localExpenses.length / expenseItemsPerPage) || 1;
+      if (expenseCurrentPage < totalPages) {
+        expenseCurrentPage++;
+        fetchExpenses();
+      }
+    });
+  }
 
   const expenseForm = document.getElementById('expense-form');
   if (expenseForm) {
@@ -1724,6 +1888,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       localExpenses.unshift({ id: newId, funder, empName, desc, amount, date });
       localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
+      expenseCurrentPage = 1;
       fetchExpenses();
       
       expenseForm.reset();
