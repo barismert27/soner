@@ -488,88 +488,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // ── Dropdown aç/kapat yardımcıları (async beklenmez, hemen tanımlanır) ──────
-  const openDropdown = () => {
-    const menu    = document.getElementById('doctor-dropdown-menu');
-    const trigger = document.getElementById('job-doctor-trigger');
-    if (!menu || !trigger) return;
-    menu.style.display = 'block';
-    menu.style.animation = 'dropIn 0.15s ease';
-    trigger.classList.add('open');
-    trigger.setAttribute('aria-expanded', 'true');
-  };
-
-  const closeDropdown = () => {
-    const menu    = document.getElementById('doctor-dropdown-menu');
-    const trigger = document.getElementById('job-doctor-trigger');
-    if (!menu || !trigger) return;
-    menu.style.display = 'none';
-    trigger.classList.remove('open');
-    trigger.setAttribute('aria-expanded', 'false');
-  };
-
-  // Trigger click — DOMContentLoaded anında bağla, fetch bitmesini bekleme
-  const triggerBtn = document.getElementById('job-doctor-trigger');
-  if (triggerBtn) {
-    triggerBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const menu = document.getElementById('doctor-dropdown-menu');
-      if (!menu) return;
-      const isOpen = menu.style.display === 'block';
-      if (isOpen) { closeDropdown(); } else { openDropdown(); }
-    });
-  }
-
-  // Dışarı tıklanınca kapat
-  document.addEventListener('click', (e) => {
-    const wrapper = document.getElementById('doctor-dropdown-wrapper');
-    if (wrapper && !wrapper.contains(e.target)) closeDropdown();
-  });
-
-  // ── Doktor Listesi fetch — sadece menü içeriğini doldurur ───────────────────
+  // ── Doktor Listesi fetch — native <select> doldur ──────────────────────────
   const fetchDoctorsListOnly = async () => {
     try {
       const fetchRes = await fetch('/api/doctors');
       const resData  = await fetchRes.json();
       doctorsList = resData.doctors || (Array.isArray(resData) ? resData : []);
 
-      // Dropdown menü içeriğini doldur
-      const menu   = document.getElementById('doctor-dropdown-menu');
-      const hidden = document.getElementById('job-doctor-input');
-
-      if (menu) {
-        if (doctorsList.length === 0) {
-          menu.innerHTML = '<div class="doctor-dropdown-empty">Kayıtlı hekim bulunamadı.</div>';
-        } else {
-          menu.innerHTML = '';
-          doctorsList.forEach(doc => {
-            const initials = doc.name.split(' ').map(w => w[0]).filter(Boolean).join('').substring(0, 2).toUpperCase();
-            const item = document.createElement('div');
-            item.className = 'doctor-dropdown-item';
-            item.setAttribute('role', 'option');
-            item.dataset.id   = doc.id;
-            item.dataset.name = doc.name;
-            item.innerHTML = `
-              <div class="doc-avatar">${initials}</div>
-              <span class="doc-name">${doc.name}</span>
-              <span class="doc-badge">#${doc.id}</span>
-            `;
-            item.addEventListener('click', (e) => {
-              e.stopPropagation();
-              // Seçim yap
-              menu.querySelectorAll('.doctor-dropdown-item').forEach(i => i.classList.remove('selected'));
-              item.classList.add('selected');
-              // Trigger görselini güncelle
-              const triggerText = document.getElementById('job-doctor-trigger-text');
-              if (triggerText) { triggerText.textContent = doc.name; triggerText.className = 'selected-text'; }
-              // Hidden input'a yaz
-              if (hidden) { hidden.value = doc.name; hidden.dataset.doctorId = doc.id; }
-              closeDropdown();
-            });
-            menu.appendChild(item);
-          });
-        }
+      // İş formu hekim <select>'ini doldur
+      const docSelect = document.getElementById('job-doctor-select');
+      if (docSelect) {
+        const prevVal = docSelect.value;
+        docSelect.innerHTML = '<option value="">— Hekim / Klinik seçin —</option>';
+        doctorsList.forEach(doc => {
+          const opt = document.createElement('option');
+          opt.value = doc.name;
+          opt.dataset.doctorId = doc.id;
+          opt.textContent = doc.name;
+          docSelect.appendChild(opt);
+        });
+        if (prevVal) docSelect.value = prevVal;
       }
 
       // Filtre barındaki <select>'i doldur
@@ -589,7 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Doktor listesi çekilemedi:', err);
     }
   };
-
 
 
   // 2. DataGrid İş Listesi
@@ -900,13 +837,11 @@ document.addEventListener('DOMContentLoaded', () => {
     toothItems.forEach(t => t.classList.remove('selected'));
     document.querySelectorAll('.treatment-checkbox').forEach(c => c.classList.remove('checked'));
     document.getElementById('job-entry-date').value = getTodayLocalDateStr();
-    // Custom dropdown sıfırla
-    const triggerText = document.getElementById('job-doctor-trigger-text');
-    if (triggerText) { triggerText.textContent = 'Dr. Adı veya Klinik seçin...'; triggerText.className = 'placeholder-text'; }
-    const hidden = document.getElementById('job-doctor-input');
-    if (hidden) { hidden.value = ''; hidden.dataset.doctorId = ''; }
-    document.querySelectorAll('.doctor-dropdown-item').forEach(i => i.classList.remove('selected'));
+    // Native select sıfırla
+    const docSelect = document.getElementById('job-doctor-select');
+    if (docSelect) docSelect.value = '';
   };
+
 
 
   // --------------------------------------------------
@@ -1182,7 +1117,22 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('add-job-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const doctorName = document.getElementById('job-doctor-input').value;
+    // Hekim bilgisini native <select>'ten oku
+    const docSelect   = document.getElementById('job-doctor-select');
+    const doctorName  = docSelect ? docSelect.value : '';
+    const selectedOpt = docSelect ? docSelect.options[docSelect.selectedIndex] : null;
+    let   doctorId    = (selectedOpt && selectedOpt.dataset.doctorId) ? selectedOpt.dataset.doctorId : '';
+    // Yedek: isme göre eşleş
+    if (!doctorId && doctorName) {
+      const matchedDoc = doctorsList.find(d => d.name.toLowerCase() === doctorName.toLowerCase());
+      if (matchedDoc) doctorId = matchedDoc.id;
+    }
+
+    if (!doctorName) {
+      alert('Lütfen bir hekim/klinik seçin.');
+      return;
+    }
+
     const patientName = document.getElementById('job-patient-name').value;
     const seqNo = document.getElementById('job-seq-no').value;
     const age = document.getElementById('job-patient-age').value;
@@ -1212,17 +1162,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Seçili dişleri virgülle birleştir
     const teethStr = Array.from(selectedTeeth).join(',');
-
-    // Doktor id'sini bul — custom dropdown'dan hidden input'a yazılır
-    let doctorId = '';
-    const hiddenDoctorInput = document.getElementById('job-doctor-input');
-    if (hiddenDoctorInput && hiddenDoctorInput.dataset.doctorId) {
-      doctorId = hiddenDoctorInput.dataset.doctorId;
-    } else {
-      // Yedek: isme göre eşleş
-      const matchedDoc = doctorsList.find(d => d.name.toLowerCase() === doctorName.toLowerCase());
-      if (matchedDoc) doctorId = matchedDoc.id;
-    }
 
     // FormData Hazırla (Multer file upload içerdiği için)
     const formData = new FormData();
