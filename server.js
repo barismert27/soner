@@ -102,7 +102,8 @@ app.get('/api/doctors/:id', async (req, res) => {
     }
     const jobs = await dbAll('SELECT * FROM jobs WHERE doctor_id = ? ORDER BY created_at DESC', [req.params.id]);
     const payments = await dbAll('SELECT * FROM payments WHERE doctor_id = ? ORDER BY payment_date DESC, id DESC', [req.params.id]);
-    res.json({ doctor, jobs, payments });
+    const statements = await dbAll('SELECT * FROM doctor_statements WHERE doctor_id = ? ORDER BY created_at DESC', [req.params.id]);
+    res.json({ doctor, jobs, payments, statements });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -436,6 +437,14 @@ app.post('/api/payments', async (req, res) => {
     }
 
     await dbTransaction(async (tx) => {
+      const doctor = await tx.txGet('SELECT balance FROM doctors WHERE id = ?', [doctor_id]);
+      if (!doctor) {
+        throw new Error('İlgili doktor/klinik bulunamadı.');
+      }
+      if (amount > doctor.balance) {
+        throw new Error(`Ödeme tutarı (${amount.toLocaleString('tr-TR')} ₺) kalan borçtan (${doctor.balance.toLocaleString('tr-TR')} ₺) fazla olamaz!`);
+      }
+
       await tx.txRun(`
         INSERT INTO payments (doctor_id, job_id, amount, payment_date, notes)
         VALUES (?, ?, ?, ?, ?)
@@ -637,6 +646,52 @@ app.delete('/api/expenses/:id', async (req, res) => {
   try {
     await dbRun('DELETE FROM expenses WHERE id = ?', [req.params.id]);
     res.json({ success: true, message: 'Gider başarıyla silindi.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ----------------------------------------------------
+// DOKTOR CARİ EKSTRE ARŞİVİ APIS
+// ----------------------------------------------------
+
+// Hekim Cari Ekstresi Kaydet / Arşivle
+app.post('/api/doctors/:id/statements', upload.single('pdf'), async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+    const title = req.body.title || `Cari Ekstre (${new Date().toLocaleDateString('tr-TR')})`;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'PDF dosyası yüklenemedi.' });
+    }
+    const file_path = `/uploads/${req.file.filename}`;
+    
+    await dbRun(
+      'INSERT INTO doctor_statements (doctor_id, title, file_path) VALUES (?, ?, ?)',
+      [doctorId, title, file_path]
+    );
+    res.status(201).json({ success: true, message: 'Ekstre başarıyla arşivlendi.', file_path });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Arşivlenmiş Ekstre Sil
+app.delete('/api/statements/:id', async (req, res) => {
+  try {
+    const statementId = req.params.id;
+    const statement = await dbGet('SELECT * FROM doctor_statements WHERE id = ?', [statementId]);
+    if (!statement) {
+      return res.status(404).json({ success: false, message: 'Ekstre bulunamadı.' });
+    }
+
+    // Diskten dosyayı sil
+    const filePath = path.join(__dirname, statement.file_path);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await dbRun('DELETE FROM doctor_statements WHERE id = ?', [statementId]);
+    res.json({ success: true, message: 'Ekstre arşivden silindi.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

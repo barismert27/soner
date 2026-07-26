@@ -148,10 +148,290 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Dynamic CSS keyframes and animations for modern modals & toasts
+  if (!document.getElementById('modern-dialogs-css')) {
+    const style = document.createElement('style');
+    style.id = 'modern-dialogs-css';
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes scaleIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   // Toast message notify
-  const notifySuccess = (msg) => {
-    alert('✓ Başarılı: ' + msg);
+  const showToast = (msg, type = 'success') => {
+    let container = document.getElementById('modern-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'modern-toast-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+      `;
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      min-width: 300px;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.98);
+      border-left: 5px solid ${type === 'success' ? '#10b981' : '#ef4444'};
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+      transform: translateX(120%);
+      transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      backdrop-filter: blur(10px);
+    `;
+    const icon = document.createElement('i');
+    icon.className = type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark';
+    icon.style.cssText = `
+      color: ${type === 'success' ? '#10b981' : '#ef4444'};
+      font-size: 20px;
+    `;
+    const text = document.createElement('div');
+    text.textContent = msg;
+    text.style.cssText = `
+      color: #1f2937;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      line-height: 1.4;
+    `;
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    container.appendChild(toast);
+    
+    // Animation in
+    setTimeout(() => {
+      toast.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Animation out and remove
+    setTimeout(() => {
+      toast.style.transform = 'translateX(120%)';
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          container.removeChild(toast);
+        }
+      }, 400);
+    }, 3500);
   };
+
+  const notifySuccess = (msg) => {
+    showToast(msg, 'success');
+  };
+  const notifyError = (msg) => {
+    showToast(msg, 'error');
+  };
+  window.notifySuccess = notifySuccess;
+  window.notifyError = notifyError;
+
+  // Override native alert to use modern showToast
+  window.alert = function(msg) {
+    if (msg.includes('✓') || msg.toLowerCase().includes('başarılı')) {
+      notifySuccess(msg.replace('✓', '').replace('Başarılı:', '').trim());
+    } else {
+      notifyError(msg.replace('Hata:', '').trim());
+    }
+  };
+
+  // Modern Confirm Dialog using Promises
+  const modernConfirm = (message) => {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20000;
+        animation: fadeIn 0.2s ease-out;
+      `;
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        width: 100%;
+        max-width: 440px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s ease-out;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+      `;
+      
+      modal.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <div style="width: 40px; height: 40px; min-width: 40px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Onay Gerekli</h3>
+        </div>
+        <p style="margin: 0 0 24px 0; font-size: 14px; color: #475569; line-height: 1.5; font-weight: 500;">${message}</p>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button id="m-confirm-cancel" style="border: 1px solid #cbd5e1; background: white; color: #334155; font-weight: 600; font-size: 13px; padding: 9px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s;">Vazgeç</button>
+          <button id="m-confirm-ok" style="border: none; background: #6366f1; color: white; font-weight: 600; font-size: 13px; padding: 9px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s;">Onayla</button>
+        </div>
+      `;
+      
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      setTimeout(() => {
+        modal.style.transform = 'scale(1)';
+      }, 10);
+      
+      const cleanUp = () => {
+        modal.style.transform = 'scale(0.95)';
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            document.body.removeChild(overlay);
+          }
+        }, 200);
+      };
+      
+      overlay.querySelector('#m-confirm-cancel').addEventListener('click', () => {
+        cleanUp();
+        resolve(false);
+      });
+      
+      overlay.querySelector('#m-confirm-ok').addEventListener('click', () => {
+        cleanUp();
+        resolve(true);
+      });
+      
+      const escListener = (e) => {
+        if (e.key === 'Escape') {
+          window.removeEventListener('keydown', escListener);
+          cleanUp();
+          resolve(false);
+        }
+      };
+      window.addEventListener('keydown', escListener);
+    });
+  };
+  window.modernConfirm = modernConfirm;
+
+  // Modern Prompt Dialog using Promises
+  const modernPrompt = (message, defaultValue = '') => {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20000;
+        animation: fadeIn 0.2s ease-out;
+      `;
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        width: 100%;
+        max-width: 440px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s ease-out;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+      `;
+      
+      modal.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <div style="width: 40px; height: 40px; min-width: 40px; background: #e0e7ff; color: #4f46e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </div>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Bilgi Girişi</h3>
+        </div>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #475569; line-height: 1.5; font-weight: 500;">${message}</p>
+        <input type="text" id="m-prompt-input" value="${defaultValue}" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 20px; outline: none; box-sizing: border-box;" />
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button id="m-prompt-cancel" style="border: 1px solid #cbd5e1; background: white; color: #334155; font-weight: 600; font-size: 13px; padding: 9px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s;">İptal</button>
+          <button id="m-prompt-ok" style="border: none; background: #6366f1; color: white; font-weight: 600; font-size: 13px; padding: 9px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s;">Kaydet</button>
+        </div>
+      `;
+      
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      const input = overlay.querySelector('#m-prompt-input');
+      
+      setTimeout(() => {
+        modal.style.transform = 'scale(1)';
+        input.focus();
+        input.select();
+      }, 10);
+      
+      const cleanUp = () => {
+        modal.style.transform = 'scale(0.95)';
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            document.body.removeChild(overlay);
+          }
+        }, 200);
+      };
+      
+      overlay.querySelector('#m-prompt-cancel').addEventListener('click', () => {
+        cleanUp();
+        resolve(null);
+      });
+      
+      const submitValue = () => {
+        const val = input.value;
+        cleanUp();
+        resolve(val);
+      };
+      
+      overlay.querySelector('#m-prompt-ok').addEventListener('click', submitValue);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          submitValue();
+        }
+      });
+      
+      const escListener = (e) => {
+        if (e.key === 'Escape') {
+          window.removeEventListener('keydown', escListener);
+          cleanUp();
+          resolve(null);
+        }
+      };
+      window.addEventListener('keydown', escListener);
+    });
+  };
+  window.modernPrompt = modernPrompt;
 
   // Modalleri Aç / Kapat
   const openModal = (modalId) => {
@@ -407,7 +687,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Ödeme formu gizli alanını ayarla
-      document.getElementById('payment-doctor-id').value = doc.id;
+      const idEl = document.getElementById('payment-doctor-id');
+      idEl.value = doc.id;
+      idEl.dataset.balance = doc.balance; // Bakiye verisini depoluyoruz
+
       document.getElementById('payment-amount').value = '';
       document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
       document.getElementById('payment-notes').value = '';
@@ -436,6 +719,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
+      // Arşivlenmiş Ekstreler Listesini Doldur
+      const statementsContainer = document.getElementById('doc-archived-statements-list');
+      if (statementsContainer) {
+        statementsContainer.innerHTML = '';
+        const archivedStatements = data.statements || [];
+        if (archivedStatements.length === 0) {
+          statementsContainer.innerHTML = '<div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">Arşivlenmiş geçmiş ekstre bulunmuyor.</div>';
+        } else {
+          archivedStatements.forEach(st => {
+            const card = document.createElement('div');
+            card.style.cssText = `
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 12px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+            `;
+            
+            const dateStr = new Date(st.created_at).toLocaleString('tr-TR');
+            card.innerHTML = `
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 12px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${st.title}">${st.title}</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 3px;">${dateStr}</div>
+              </div>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <a href="${st.file_path}" target="_blank" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none;" title="Görüntüle / İndir">
+                  <i class="fa-solid fa-download"></i>
+                </a>
+                <button onclick="deleteArchivedStatement(${st.id}, ${doc.id})" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Arşivden Sil">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            `;
+            statementsContainer.appendChild(card);
+          });
+        }
+      }
+
       openModal('doctor-detail-modal');
 
     } catch (err) {
@@ -448,9 +772,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('record-payment-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const docId = document.getElementById('payment-doctor-id').value;
-    const amount = document.getElementById('payment-amount').value;
+    const balance = parseFloat(document.getElementById('payment-doctor-id').dataset.balance || 0);
+    const amount = parseFloat(document.getElementById('payment-amount').value);
     const paymentDate = document.getElementById('payment-date').value;
     const notes = document.getElementById('payment-notes').value;
+
+    if (amount > balance) {
+      alert(`Girilen ödeme tutarı kalan borçtan (${formatCurrency(balance)}) fazla olamaz!`);
+      return;
+    }
 
     try {
       const res = await fetch('/api/payments', {
@@ -473,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Ödeme Kaydı Silme (Borcu Geri Yansıtma)
   const deletePayment = async (paymentId, refreshDocId = null) => {
-    if (!confirm('Bu ödeme tahsilat kaydını silmek istediğinize emin misiniz? Alacak bakiyesi geri yüklenecektir.')) return;
+    if (!await modernConfirm('Bu ödeme tahsilat kaydını silmek istediğinize emin misiniz? Alacak bakiyesi geri yüklenecektir.')) return;
     try {
       const res = await fetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
       const data = await res.json();
@@ -493,6 +823,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   window.deletePayment = deletePayment;
+
+  // Arşivlenmiş Ekstre Belgesini Sil
+  const deleteArchivedStatement = async (statementId, docId) => {
+    if (!await modernConfirm('Seçili cari ekstre belgesini arşivden kalıcı olarak silmek istediğinize emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/statements/${statementId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        notifySuccess('Ekstre arşivden silindi.');
+        showDoctorDetail(docId); // Modal içeriğini yenile
+      } else {
+        alert('Hata: ' + data.message);
+      }
+    } catch (err) {
+      console.error('Ekstre silinemedi:', err);
+    }
+  };
+  window.deleteArchivedStatement = deleteArchivedStatement;
 
   // --------------------------------------------------
   // İŞ EMİR DETAYI VE DURUM GÜNCELLEME
@@ -662,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // İşi Sil
   const deleteJob = async (jobId) => {
-    if (!confirm('Bu iş emrini silmek istediğinize emin misiniz? İlişkili borç tutarı hekim cari hesabından düşülecektir.')) return;
+    if (!await modernConfirm('Bu iş emrini silmek istediğinize emin misiniz? İlişkili borç tutarı hekim cari hesabından düşülecektir.')) return;
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
       const data = await res.json();
@@ -781,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const deleteGalleryItem = async (id) => {
-    if (!confirm('Bu galeri vakasını ve görsellerini silmek istediğinize emin misiniz?')) return;
+    if (!await modernConfirm('Bu galeri vakasını ve görsellerini silmek istediğinize emin misiniz?')) return;
     try {
       const res = await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -902,13 +1250,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.renderExpenseDoctors = renderExpenseDoctors;
   renderExpenseDoctors();
 
-  window.addExpenseDoctor = function() {
-    const newDoc = prompt('Giderler listesine eklemek istediğiniz yeni doktor / ortak adını giriniz:');
+  window.addExpenseDoctor = async function() {
+    const newDoc = await modernPrompt('Giderler listesine eklemek istediğiniz yeni doktor / ortak adını giriniz:');
     if (newDoc && newDoc.trim()) {
       const cleaned = newDoc.trim();
       let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
       if (docList.includes(cleaned)) {
-        alert('Bu doktor zaten listede mevcut.');
+        notifyError('Bu doktor zaten listede mevcut.');
         return;
       }
       docList.push(cleaned);
@@ -920,22 +1268,22 @@ document.addEventListener('DOMContentLoaded', () => {
       notifySuccess(`"${cleaned}" hekim listesine eklendi.`);
     }
   };
-
-  window.deleteExpenseDoctor = function() {
+ 
+  window.deleteExpenseDoctor = async function() {
     const select = document.getElementById('expense-funder');
     const selectedValue = select ? select.value : '';
-
+ 
     if (!selectedValue) {
-      alert('Lütfen silmek istediğiniz doktoru üstteki açılır listeden seçin.');
+      notifyError('Lütfen silmek istediğiniz doktoru üstteki açılır listeden seçin.');
       return;
     }
-
+ 
     if (selectedValue === 'Soner Başyıldız') {
-      alert('⚠️ Soner Başyıldız ana doktor (kurucu/yetkili) olduğu için listeden silinemez!');
+      notifyError('⚠️ Soner Başyıldız ana doktor (kurucu/yetkili) olduğu için listeden silinemez!');
       return;
     }
-
-    if (confirm(`"${selectedValue}" isimli hekimi giderler listesinden silmek istediğinize emin misiniz?`)) {
+ 
+    if (await modernConfirm(`"${selectedValue}" isimli hekimi giderler listesinden silmek istediğinize emin misiniz?`)) {
       let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
       docList = docList.filter(doc => doc !== selectedValue);
       localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
@@ -1088,16 +1436,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
           <tr>
-            <td style="width: 50%; padding-right: 10px;">
+            <td style="width: 100%;">
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
                 <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Kayıtlı Toplam Fiş</div>
                 <div style="font-size: 18px; font-weight: bold; color: #0f172a;">${count} Adet</div>
-              </div>
-            </td>
-            <td style="width: 50%; padding-left: 10px;">
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-                <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Toplam Harcanan Gider</div>
-                <div style="font-size: 18px; font-weight: bold; color: #15803d;">${formattedTotal}</div>
               </div>
             </td>
           </tr>
@@ -1118,12 +1460,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <tbody>
             ${itemsHTML}
           </tbody>
-          <tfoot>
-            <tr style="background-color: #1e293b; color: white; font-weight: bold; font-size: 12px;">
-              <td colspan="4" style="padding: 10px; text-align: right; border: 1px solid #1e293b;">TOPLAM:</td>
-              <td style="padding: 10px; text-align: right; border: 1px solid #1e293b; color: #34d399;">${formattedTotal}</td>
-            </tr>
-          </tfoot>
         </table>
 
         <!-- İMZA ALANI -->
@@ -1396,8 +1732,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.deleteExpense = function(id) {
-    if (confirm('Bu gider kaydını silmek istediğinize emin misiniz?')) {
+  window.deleteExpense = async function(id) {
+    if (await modernConfirm('Bu gider kaydını silmek istediğinize emin misiniz?')) {
       localExpenses = localExpenses.filter(exp => exp.id !== id);
       localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
       fetchExpenses();
@@ -1651,9 +1987,33 @@ document.addEventListener('DOMContentLoaded', () => {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       
-      html2pdf().set(opt).from(element).save().then(() => {
+      html2pdf().set(opt).from(element).save().then(async () => {
+        // İndirme başarılı olduktan sonra PDF blob'unu oluşturup sunucu arşivine yüklüyoruz
+        const pdfWorker = html2pdf().set(opt).from(element);
+        pdfWorker.output('blob').then(async (blob) => {
+          const formData = new FormData();
+          formData.append('pdf', blob, `Basyildiz_Cari_Ekstre_${doc.name.replace(/\s+/g, '_')}_${dateFileStr}.pdf`);
+          formData.append('title', `Cari Ekstre (${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`);
+
+          try {
+            const uploadRes = await fetch(`/api/doctors/${docId}/statements`, {
+              method: 'POST',
+              body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) {
+              notifySuccess('Cari ekstre indirildi ve geçmiş arşivine eklendi.');
+              // Eğer hekim modalı aktifse arşiv listesini anlık yenileyelim
+              const modal = document.getElementById('doctor-detail-modal');
+              if (modal && modal.classList.contains('active')) {
+                showDoctorDetail(docId);
+              }
+            }
+          } catch (uploadErr) {
+            console.error('Ekstre arşivlenirken hata:', uploadErr);
+          }
+        });
         document.body.removeChild(container);
-        notifySuccess('Klinik cari ekstresi PDF olarak indirildi.');
       }).catch(err => {
         console.error('Cari PDF oluşturma hatası:', err);
         document.body.removeChild(container);

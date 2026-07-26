@@ -158,6 +158,18 @@ const initDatabase = async () => {
       );
     `);
 
+    // 6. DOKTOR CARİ EKSTRE ARŞİVİ TABLOSU
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS doctor_statements (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        doctor_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        file_path VARCHAR(255) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+      );
+    `);
+
     console.log('MySQL veritabanı tabloları kontrol edildi / oluşturuldu.');
   } catch (error) {
     console.error('Veritabanı ilklendirme hatası:', error);
