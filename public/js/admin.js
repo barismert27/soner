@@ -586,6 +586,26 @@ document.addEventListener('DOMContentLoaded', () => {
     return d.toISOString().split('T')[0];
   };
 
+  const getYMFromDate = (dateVal) => {
+    if (!dateVal) return '';
+    if (typeof dateVal === 'string') {
+      const cleanStr = dateVal.trim();
+      if (cleanStr.length >= 7 && cleanStr.includes('-')) {
+        const parts = cleanStr.split('-');
+        if (parts.length >= 2 && parts[0].length === 4) {
+          return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+        }
+      }
+    }
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+    return '';
+  };
+
   let selectedCariMonth = 'all';
 
   const formatMonthYearStr = (yearMonthStr) => {
@@ -692,8 +712,8 @@ document.addEventListener('DOMContentLoaded', () => {
           totalPaid = parseFloat(doc.total_paid || 0);
           balance = parseFloat(doc.balance || 0);
         } else {
-          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && j.entry_date && j.entry_date.startsWith(selectedCariMonth));
-          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && p.payment_date && p.payment_date.startsWith(selectedCariMonth));
+          const docJobs = allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date) === selectedCariMonth);
+          const docPayments = allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date) === selectedCariMonth);
           
           totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
           totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
