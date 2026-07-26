@@ -488,17 +488,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Doktor Listesi — Modern Custom Dropdown + Filtre Bar
+  // ── Dropdown aç/kapat yardımcıları (async beklenmez, hemen tanımlanır) ──────
+  const openDropdown = () => {
+    const menu    = document.getElementById('doctor-dropdown-menu');
+    const trigger = document.getElementById('job-doctor-trigger');
+    if (!menu || !trigger) return;
+    menu.style.display = 'block';
+    menu.style.animation = 'dropIn 0.15s ease';
+    trigger.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+  };
+
+  const closeDropdown = () => {
+    const menu    = document.getElementById('doctor-dropdown-menu');
+    const trigger = document.getElementById('job-doctor-trigger');
+    if (!menu || !trigger) return;
+    menu.style.display = 'none';
+    trigger.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  };
+
+  // Trigger click — DOMContentLoaded anında bağla, fetch bitmesini bekleme
+  const triggerBtn = document.getElementById('job-doctor-trigger');
+  if (triggerBtn) {
+    triggerBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const menu = document.getElementById('doctor-dropdown-menu');
+      if (!menu) return;
+      const isOpen = menu.style.display === 'block';
+      if (isOpen) { closeDropdown(); } else { openDropdown(); }
+    });
+  }
+
+  // Dışarı tıklanınca kapat
+  document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('doctor-dropdown-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) closeDropdown();
+  });
+
+  // ── Doktor Listesi fetch — sadece menü içeriğini doldurur ───────────────────
   const fetchDoctorsListOnly = async () => {
     try {
       const fetchRes = await fetch('/api/doctors');
       const resData  = await fetchRes.json();
       doctorsList = resData.doctors || (Array.isArray(resData) ? resData : []);
 
-      // ── Modern Custom Dropdown ───────────────────────────────────────────────
-      const menu    = document.getElementById('doctor-dropdown-menu');
-      const trigger = document.getElementById('job-doctor-trigger');
-      const hidden  = document.getElementById('job-doctor-input');
+      // Dropdown menü içeriğini doldur
+      const menu   = document.getElementById('doctor-dropdown-menu');
+      const hidden = document.getElementById('job-doctor-input');
 
       if (menu) {
         if (doctorsList.length === 0) {
@@ -506,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           menu.innerHTML = '';
           doctorsList.forEach(doc => {
-            const initials = doc.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+            const initials = doc.name.split(' ').map(w => w[0]).filter(Boolean).join('').substring(0, 2).toUpperCase();
             const item = document.createElement('div');
             item.className = 'doctor-dropdown-item';
             item.setAttribute('role', 'option');
@@ -517,21 +555,16 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="doc-name">${doc.name}</span>
               <span class="doc-badge">#${doc.id}</span>
             `;
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
               // Seçim yap
               menu.querySelectorAll('.doctor-dropdown-item').forEach(i => i.classList.remove('selected'));
               item.classList.add('selected');
-
-              // Trigger'ı güncelle
+              // Trigger görselini güncelle
               const triggerText = document.getElementById('job-doctor-trigger-text');
-              triggerText.textContent = doc.name;
-              triggerText.className = 'selected-text';
-
-              // Hidden input'a yaz (form submit için)
-              hidden.value = doc.name;
-              hidden.dataset.doctorId = doc.id;
-
-              // Kapat
+              if (triggerText) { triggerText.textContent = doc.name; triggerText.className = 'selected-text'; }
+              // Hidden input'a yaz
+              if (hidden) { hidden.value = doc.name; hidden.dataset.doctorId = doc.id; }
               closeDropdown();
             });
             menu.appendChild(item);
@@ -539,17 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Toggle aç/kapat
-      if (trigger && !trigger._ddBound) {
-        trigger._ddBound = true;
-        trigger.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isOpen = menu.classList.contains('open');
-          if (isOpen) { closeDropdown(); } else { openDropdown(); }
-        });
-      }
-
-      // ── Filtre barındaki doktor <select>'i doldur ────────────────────────────
+      // Filtre barındaki <select>'i doldur
       const filterDoc = document.getElementById('filter-doctor');
       if (filterDoc) {
         const currentVal = filterDoc.value;
@@ -566,30 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Doktor listesi çekilemedi:', err);
     }
   };
-
-  const openDropdown = () => {
-    const menu    = document.getElementById('doctor-dropdown-menu');
-    const trigger = document.getElementById('job-doctor-trigger');
-    if (!menu || !trigger) return;
-    menu.classList.add('open');
-    trigger.classList.add('open');
-    trigger.setAttribute('aria-expanded', 'true');
-  };
-
-  const closeDropdown = () => {
-    const menu    = document.getElementById('doctor-dropdown-menu');
-    const trigger = document.getElementById('job-doctor-trigger');
-    if (!menu || !trigger) return;
-    menu.classList.remove('open');
-    trigger.classList.remove('open');
-    trigger.setAttribute('aria-expanded', 'false');
-  };
-
-  // Dışarı tıklanınca kapat
-  document.addEventListener('click', (e) => {
-    const wrapper = document.getElementById('doctor-dropdown-wrapper');
-    if (wrapper && !wrapper.contains(e.target)) closeDropdown();
-  });
 
 
 
