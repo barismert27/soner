@@ -42,6 +42,93 @@
       .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+      /* Modern Doctor Dropdown */
+      .doctor-dropdown-wrapper {
+        position: relative;
+        width: 100%;
+      }
+      .doctor-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 14px;
+        background: #fff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1e293b;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+        outline: none;
+      }
+      .doctor-dropdown-trigger:hover, .doctor-dropdown-trigger:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+      }
+      .doctor-dropdown-trigger .placeholder-text { color: #94a3b8; }
+      .doctor-dropdown-trigger .selected-text { color: #1e293b; font-weight: 500; }
+      .doctor-dropdown-trigger .chevron-icon {
+        transition: transform 0.2s;
+        color: #64748b;
+        flex-shrink: 0;
+        margin-left: 8px;
+      }
+      .doctor-dropdown-trigger.open .chevron-icon { transform: rotate(180deg); }
+      .doctor-dropdown-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        z-index: 9999;
+        max-height: 280px;
+        overflow-y: auto;
+        display: none;
+        padding: 6px;
+      }
+      .doctor-dropdown-menu.open { display: block; animation: dropIn 0.15s ease; }
+      @keyframes dropIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .doctor-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 13.5px;
+        color: #1e293b;
+        transition: background 0.15s;
+      }
+      .doctor-dropdown-item:hover { background: #f1f5f9; }
+      .doctor-dropdown-item.selected { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+      .doctor-dropdown-item .doc-avatar {
+        width: 30px; height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+      }
+      .doctor-dropdown-item .doc-name { flex: 1; }
+      .doctor-dropdown-item .doc-badge {
+        font-size: 10px; padding: 2px 6px; border-radius: 4px;
+        background: #f1f5f9; color: #64748b;
+      }
+      .doctor-dropdown-item.selected .doc-badge { background: #e0e7ff; color: #4f46e5; }
+      .doctor-dropdown-empty {
+        padding: 14px; text-align: center; color: #94a3b8; font-size: 13px;
+      }
   </style>
 </head>
 <body>
@@ -197,11 +284,19 @@
             
             <!-- Hekim ve Hasta Bilgileri -->
             <div class="form-group">
-              <label class="form-label" for="job-doctor-input">Hekim / Klinik Seçin veya Ekleyin *</label>
-              <input type="text" id="job-doctor-input" class="form-control-admin" placeholder="Dr. Adı veya Klinik Adı giriniz..." list="doctors-list-datalist" required>
-              <datalist id="doctors-list-datalist">
-                <!-- JS ile dolacak -->
-              </datalist>
+              <label class="form-label" for="job-doctor-trigger">Hekim / Klinik Seçin *</label>
+              <!-- Modern Custom Dropdown -->
+              <div class="doctor-dropdown-wrapper" id="doctor-dropdown-wrapper">
+                <button type="button" class="doctor-dropdown-trigger" id="job-doctor-trigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span id="job-doctor-trigger-text" class="placeholder-text">Dr. Adı veya Klinik seçin...</span>
+                  <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="doctor-dropdown-menu custom-scrollbar" id="doctor-dropdown-menu" role="listbox">
+                  <div class="doctor-dropdown-empty">Yükleniyor...</div>
+                </div>
+              </div>
+              <!-- Hidden input to carry the actual value for form submit -->
+              <input type="hidden" id="job-doctor-input" name="job-doctor-input" required>
             </div>
             
             <div class="form-group">
