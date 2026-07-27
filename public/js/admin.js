@@ -1431,21 +1431,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------
-  // GİDERLER (EXPENSES) MANTIĞI (LocalStorage Tabanlı Test)
+  // GİDERLER (EXPENSES) MANTIĞI (Gerçek MySQL Veritabanı)
   // --------------------------------------------------
-  const renderExpenseDoctors = () => {
+  let localExpenses = [];
+  let expenseDoctorsList = ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+
+  const renderExpenseDoctors = async () => {
     const select = document.getElementById('expense-funder');
     if (!select) return;
     const currentVal = select.value;
 
-    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors'));
-    if (!docList || !Array.isArray(docList) || docList.length === 0) {
-      docList = ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
-      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
+    try {
+      const res = await fetch('/api/expense-doctors');
+      if (res.ok) {
+        expenseDoctorsList = await res.json();
+      }
+    } catch (e) {
+      console.error("Ortak hekimler veritabanından alınamadı:", e);
     }
 
     select.innerHTML = '<option value="" disabled selected>Ödemeyi Yapan Doktoru Seçin</option>';
-    docList.forEach(doc => {
+    expenseDoctorsList.forEach(doc => {
       const option = document.createElement('option');
       option.value = doc;
       option.textContent = doc === 'Soner Başyıldız' ? 'Soner Başyıldız (Ana Hekim)' : doc;
@@ -1462,18 +1468,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const newDoc = await modernPrompt('Giderler listesine eklemek istediğiniz yeni doktor / ortak adını giriniz:');
     if (newDoc && newDoc.trim()) {
       const cleaned = newDoc.trim();
-      let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
-      if (docList.includes(cleaned)) {
-        notifyError('Bu doktor zaten listede mevcut.');
-        return;
+      try {
+        const response = await fetch('/api/expense-doctors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: cleaned })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          await renderExpenseDoctors();
+          if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
+          const select = document.getElementById('expense-funder');
+          if (select) select.value = cleaned;
+          notifySuccess(`"${cleaned}" hekim listesine veritabanı üzerinden eklendi.`);
+        } else {
+          notifyError(data.message || 'Ekleme başarısız.');
+        }
+      } catch (err) {
+        notifyError('Sunucu bağlantı hatası!');
       }
-      docList.push(cleaned);
-      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
-      renderExpenseDoctors();
-      if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
-      const select = document.getElementById('expense-funder');
-      if (select) select.value = cleaned;
-      notifySuccess(`"${cleaned}" hekim listesine eklendi.`);
     }
   };
  
@@ -1491,29 +1504,28 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
  
-    if (await modernConfirm(`"${selectedValue}" isimli hekimi giderler listesinden silmek istediğinize emin misiniz?`)) {
-      let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
-      docList = docList.filter(doc => doc !== selectedValue);
-      localStorage.setItem('basyildiz_expense_doctors', JSON.stringify(docList));
-      renderExpenseDoctors();
-      if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
-      notifySuccess(`"${selectedValue}" gider hekim listesinden silindi.`);
+    if (await modernConfirm(`"${selectedValue}" isimli hekimi giderler listesinden veritabanından silmek istediğinize emin misiniz?`)) {
+      try {
+        const response = await fetch(`/api/expense-doctors/${encodeURIComponent(selectedValue)}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          await renderExpenseDoctors();
+          if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
+          notifySuccess(`"${selectedValue}" gider hekim listesinden silindi.`);
+        } else {
+          notifyError(data.message || 'Silme işlemi başarısız.');
+        }
+      } catch (err) {
+        notifyError('Sunucu ile iletişim hatası!');
+      }
     }
   };
 
   const todayDate = getTodayLocalDateStr();
   const expenseDateInput = document.getElementById('expense-date');
   if (expenseDateInput) expenseDateInput.value = todayDate;
-
-  let localExpenses = JSON.parse(localStorage.getItem('basyildiz_expenses')) || [];
-  
-  if (localExpenses.length === 0) {
-    localExpenses = [
-      { id: 1002, funder: "Soner Başyıldız", empName: "Ahmet Yılmaz", desc: "Klinik için zirkonyum blok alımı (5 adet)", amount: 12500, date: todayDate },
-      { id: 1001, funder: "Rıdvan", empName: "Ayşe Demir", desc: "Aylık elektrik ve su faturası ödemesi", amount: 3450, date: "2026-07-20" }
-    ];
-    localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
-  }
 
   // ORTAK / HEKİM GİDER ÖZET TABLOSU MANTIĞI
   const renderDoctorExpensesSummary = () => {
@@ -1526,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let grandTotal = 0;
     let grandCount = 0;
 
-    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+    let docList = [...expenseDoctorsList];
     localExpenses.forEach(exp => {
       if (exp.funder && !docList.includes(exp.funder)) {
         docList.push(exp.funder);
@@ -1716,7 +1728,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ORTAK GİDER GENEL ÖZET TABLOSUNU PDF OLARAK İNDİRME METODU (TABLO GÖRÜNÜMLÜ TEMİZ RAPOR)
   window.generateDoctorExpensesSummaryPDF = function() {
-    let docList = JSON.parse(localStorage.getItem('basyildiz_expense_doctors')) || ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+    let docList = [...expenseDoctorsList];
     localExpenses.forEach(exp => {
       if (exp.funder && !docList.includes(exp.funder)) {
         docList.push(exp.funder);
@@ -1856,7 +1868,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  const fetchExpenses = () => {
+  const fetchExpenses = async () => {
+    try {
+      const res = await fetch('/api/expenses');
+      if (res.ok) {
+        localExpenses = await res.json();
+      }
+    } catch (err) {
+      console.error('Giderler veritabanından çekilemedi:', err);
+    }
+
+    await renderExpenseDoctors();
     if (typeof renderDoctorExpensesSummary === 'function') renderDoctorExpensesSummary();
 
     const tableBody = document.getElementById('expense-table-body');
@@ -1909,9 +1931,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="py-4 px-6 border-b border-slate-100">
               <div class="flex items-center gap-2">
                   <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
-                      ${exp.empName.charAt(0).toUpperCase()}
+                      ${(exp.empName && exp.empName.length > 0) ? exp.empName.charAt(0).toUpperCase() : '-'}
                   </div>
-                  <span class="font-medium text-slate-700">${exp.empName}</span>
+                  <span class="font-medium text-slate-700">${exp.empName || '-'}</span>
               </div>
           </td>
           <td class="py-4 px-6 text-slate-600 truncate max-w-[200px] border-b border-slate-100" title="${exp.desc}">${exp.desc}</td>
@@ -1979,7 +2001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const expenseForm = document.getElementById('expense-form');
   if (expenseForm) {
-    expenseForm.addEventListener('submit', (e) => {
+    expenseForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const funder = document.getElementById('expense-funder').value;
       const empName = document.getElementById('expense-empName').value.trim();
@@ -1987,25 +2009,49 @@ document.addEventListener('DOMContentLoaded', () => {
       const amount = parseFloat(document.getElementById('expense-amount').value);
       const date = document.getElementById('expense-date').value;
 
-      const newId = localExpenses.length > 0 ? Math.max(...localExpenses.map(e => e.id)) + 1 : 1000;
-      
-      localExpenses.unshift({ id: newId, funder, empName, desc, amount, date });
-      localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
-      expenseCurrentPage = 1;
-      fetchExpenses();
-      
-      expenseForm.reset();
-      document.getElementById('expense-date').value = todayDate;
-      notifySuccess('Yeni gider başarıyla kaydedildi.');
+      if (!funder || !desc || isNaN(amount) || amount <= 0) {
+        notifyError('Lütfen tüm bilgileri (Ödeyen Hekim, Tutar, Açıklama vb.) eksiksiz giriniz.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ funder, empName, desc, amount, date })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          expenseCurrentPage = 1;
+          await fetchExpenses();
+          expenseForm.reset();
+          document.getElementById('expense-date').value = getTodayLocalDateStr();
+          notifySuccess('Yeni gider veritabanına başarıyla kaydedildi.');
+        } else {
+          notifyError(data.message || 'Gider kaydedilemedi.');
+        }
+      } catch (err) {
+        notifyError('Sunucu hatası: Gider kaydedilemedi!');
+      }
     });
   }
 
   window.deleteExpense = async function(id) {
-    if (await modernConfirm('Bu gider kaydını silmek istediğinize emin misiniz?')) {
-      localExpenses = localExpenses.filter(exp => exp.id !== id);
-      localStorage.setItem('basyildiz_expenses', JSON.stringify(localExpenses));
-      fetchExpenses();
-      notifySuccess('Gider başarıyla silindi.');
+    if (await modernConfirm('Bu gider kaydını veritabanından kalıcı olarak silmek istediğinize emin misiniz?')) {
+      try {
+        const response = await fetch(`/api/expenses/${id}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          await fetchExpenses();
+          notifySuccess('Gider veritabanından başarıyla silindi.');
+        } else {
+          notifyError(data.message || 'Gider silinemedi.');
+        }
+      } catch (err) {
+        notifyError('Sunucu bağlantı hatası!');
+      }
     }
   };
 

@@ -652,13 +652,59 @@ app.delete('/api/gallery/:id', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// GİDERLER APIS
+// GİDERLER VE ORTAKLAR APIS
 // ----------------------------------------------------
+
+app.get('/api/expense-doctors', async (req, res) => {
+  try {
+    const doctors = await dbAll('SELECT * FROM expense_doctors ORDER BY id ASC');
+    if (doctors.length === 0) {
+      return res.json(["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"]);
+    }
+    res.json(doctors.map(d => d.name));
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/expense-doctors', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Geçerli bir hekim/ortak adı giriniz.' });
+    }
+    await dbRun('INSERT IGNORE INTO expense_doctors (name) VALUES (?)', [name.trim()]);
+    res.status(201).json({ success: true, message: 'Hekim gider listesine eklendi.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/expense-doctors/:name', async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    if (name === 'Soner Başyıldız') {
+      return res.status(400).json({ success: false, message: 'Soner Başyıldız ana hekim olduğu için silinemez!' });
+    }
+    await dbRun('DELETE FROM expense_doctors WHERE name = ?', [name]);
+    res.json({ success: true, message: 'Hekim gider listesinden silindi.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 app.get('/api/expenses', async (req, res) => {
   try {
     const expenses = await dbAll('SELECT * FROM expenses ORDER BY expense_date DESC, id DESC');
-    res.json(expenses);
+    const mapped = expenses.map(row => ({
+      id: row.id,
+      funder: row.funder || "Soner Başyıldız",
+      empName: row.emp_name || "-",
+      desc: row.description || "-",
+      amount: parseFloat(row.amount || 0),
+      date: row.expense_date
+    }));
+    res.json(mapped);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -666,19 +712,35 @@ app.get('/api/expenses', async (req, res) => {
 
 app.post('/api/expenses', async (req, res) => {
   try {
-    let { description, amount, expense_date } = req.body;
+    let { funder, empName, emp_name, desc, description, amount, date, expense_date } = req.body;
     amount = parseFloat(amount);
+    const finalDesc = desc || description || "Gider";
+    const finalDate = date || expense_date || new Date().toISOString().split('T')[0];
+    const finalEmp = empName || emp_name || "-";
+    const finalFunder = funder || "Soner Başyıldız";
     
-    if (!description || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Geçerli bir açıklama ve tutar giriniz.' });
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Geçerli bir tutar giriniz.' });
     }
 
     const result = await dbRun(
-      'INSERT INTO expenses (description, amount, expense_date) VALUES (?, ?, ?)',
-      [description.trim(), amount, expense_date || new Date().toISOString().split('T')[0]]
+      'INSERT INTO expenses (funder, emp_name, description, amount, expense_date) VALUES (?, ?, ?, ?, ?)',
+      [finalFunder.trim(), finalEmp.trim(), finalDesc.trim(), amount, finalDate]
     );
 
-    res.status(201).json({ success: true, id: result.id, message: 'Gider başarıyla kaydedildi.' });
+    res.status(201).json({ 
+      success: true, 
+      id: result.id, 
+      expense: {
+        id: result.id,
+        funder: finalFunder.trim(),
+        empName: finalEmp.trim(),
+        desc: finalDesc.trim(),
+        amount: amount,
+        date: finalDate
+      },
+      message: 'Gider başarıyla veritabanına kaydedildi.' 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

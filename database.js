@@ -152,12 +152,45 @@ const initDatabase = async () => {
     await dbRun(`
       CREATE TABLE IF NOT EXISTS expenses (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        funder VARCHAR(255) NULL,
+        emp_name VARCHAR(255) NULL,
         description VARCHAR(255) NOT NULL,
         amount DOUBLE NOT NULL,
         expense_date DATE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Mevcut veritabanında tablo varsa diye güvenli bir şekilde yeni kolonları eklemeyi dene
+    try {
+      await dbRun("ALTER TABLE expenses ADD COLUMN funder VARCHAR(255) NULL AFTER id;");
+    } catch (e) { /* Kolon zaten varsa atla */ }
+    try {
+      await dbRun("ALTER TABLE expenses ADD COLUMN emp_name VARCHAR(255) NULL AFTER funder;");
+    } catch (e) { /* Kolon zaten varsa atla */ }
+
+    // 5.1 GİDER YAZILACAK ORTAKLAR TABLOSU
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS expense_doctors (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Eğer ortaklar tablosu boşsa başlangıç verilerini bas
+    try {
+      const existingDocs = await dbAll("SELECT * FROM expense_doctors LIMIT 1;");
+      if (existingDocs.length === 0) {
+        const defaultDocs = ["Soner Başyıldız", "Rıdvan", "Tamer Başyıldız", "Hakan"];
+        for (const doc of defaultDocs) {
+          await dbRun("INSERT IGNORE INTO expense_doctors (name) VALUES (?);", [doc]);
+        }
+        console.log('Varsayılan gider ortakları veritabanına kaydedildi.');
+      }
+    } catch (err) {
+      console.error('Ortak kontrol hatası:', err);
+    }
 
     // 6. DOKTOR CARİ EKSTRE ARŞİVİ TABLOSU
     await dbRun(`
