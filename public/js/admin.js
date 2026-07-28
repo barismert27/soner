@@ -728,14 +728,22 @@ document.addEventListener('DOMContentLoaded', () => {
       body.innerHTML = '';
 
       if (docs.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Kayıtlı doktor/klinik bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Kayıtlı doktor/klinik bulunamadı.</td></tr>';
         return;
       }
 
       docs.forEach(doc => {
+        let devredenBakiye = 0;
         let totalDebt = 0;
         let totalPaid = 0;
         let balance = 0;
+
+        if (selectedCariMonth !== 'all') {
+          const priorJobs = allJobs.filter(j => j.doctor_id == doc.id && getYMFromDate(j.entry_date, j.created_at) < selectedCariMonth);
+          const priorPayments = allPayments.filter(p => p.doctor_id == doc.id && getYMFromDate(p.payment_date, p.created_at) < selectedCariMonth);
+          devredenBakiye = priorJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0)
+                         - priorPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        }
 
         const docJobs = selectedCariMonth === 'all' 
           ? allJobs.filter(j => j.doctor_id == doc.id) 
@@ -746,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         totalDebt = docJobs.reduce((s, j) => s + parseFloat(j.total_price || 0), 0);
         totalPaid = docPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-        balance = totalDebt - totalPaid;
+        balance = devredenBakiye + totalDebt - totalPaid;
 
         const isMainDoc = doc.name === 'Soner Başyıldız';
 
@@ -755,6 +763,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <td><strong>#${doc.id}</strong></td>
           <td><strong>${doc.name}</strong></td>
           <td>${doc.phone || '-'}</td>
+          <td style="font-weight: 600; color: ${devredenBakiye > 0 ? 'var(--accent)' : (devredenBakiye < 0 ? 'var(--success)' : 'inherit')};">
+            ${selectedCariMonth === 'all' ? '-' : formatCurrency(devredenBakiye)}
+          </td>
           <td>${formatCurrency(totalDebt)}</td>
           <td>${formatCurrency(totalPaid)}</td>
           <td style="color: ${balance > 0 ? 'var(--accent)' : 'var(--success)'}; font-weight: 700;">
@@ -2153,33 +2164,58 @@ document.addEventListener('DOMContentLoaded', () => {
       let jobs = data.jobs || [];
       let payments = data.payments || [];
       
-      let docTotalDebt = parseFloat(doc.total_debt || 0);
-      let docTotalPaid = parseFloat(doc.total_paid || 0);
-      let docBalance = parseFloat(doc.balance || 0);
+      let devredenBakiye = 0;
+      let docTotalDebt = 0;
+      let docTotalPaid = 0;
+      let docBalance = 0;
       let periodTitle = 'Tüm Zamanlar';
 
       if (typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all') {
+        const priorJobs = jobs.filter(j => getYMFromDate(j.entry_date, j.created_at) < selectedCariMonth);
+        const priorPayments = payments.filter(p => getYMFromDate(p.payment_date, p.created_at) < selectedCariMonth);
+        devredenBakiye = priorJobs.reduce((sum, j) => sum + parseFloat(j.total_price || 0), 0)
+                       - priorPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+
         jobs = jobs.filter(j => getYMFromDate(j.entry_date, j.created_at) === selectedCariMonth);
         payments = payments.filter(p => getYMFromDate(p.payment_date, p.created_at) === selectedCariMonth);
         
         docTotalDebt = jobs.reduce((sum, j) => sum + parseFloat(j.total_price || 0), 0);
         docTotalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-        docBalance = docTotalDebt - docTotalPaid;
+        docBalance = devredenBakiye + docTotalDebt - docTotalPaid;
         periodTitle = formatMonthYearStr(selectedCariMonth);
+      } else {
+        docTotalDebt = jobs.reduce((sum, j) => sum + parseFloat(j.total_price || 0), 0);
+        docTotalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        docBalance = docTotalDebt - docTotalPaid;
       }
       
       const nowStr = new Date().toLocaleString('tr-TR');
       const dateFileStr = new Date().toISOString().split('T')[0];
       
       let jobsRowsHTML = '';
-      if (jobs.length === 0) {
-        jobsRowsHTML = `
-          <tr>
-            <td colspan="6" style="padding: 15px; text-align: center; color: #64748b; font-style: italic; font-size: 12px; border: 1px solid #cbd5e1;">
-              Kayıtlı herhangi bir hasta/vaka iş emri bulunmamaktadır.
+      if (typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' && devredenBakiye !== 0) {
+        jobsRowsHTML += `
+          <tr style="background-color: #f8fafc; font-size: 11px; border-bottom: 1px solid #cbd5e1; font-weight: bold; page-break-inside: avoid;">
+            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">-</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">-</td>
+            <td colspan="3" style="padding: 8px; border: 1px solid #cbd5e1; color: #475569;">Önceki Dönemden Devreden Bakiye</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; color: ${devredenBakiye > 0 ? '#b91c1c' : '#15803d'};">
+              ${devredenBakiye.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺
             </td>
           </tr>
         `;
+      }
+
+      if (jobs.length === 0) {
+        if (typeof selectedCariMonth === 'undefined' || selectedCariMonth === 'all' || devredenBakiye === 0) {
+          jobsRowsHTML += `
+            <tr>
+              <td colspan="6" style="padding: 15px; text-align: center; color: #64748b; font-style: italic; font-size: 12px; border: 1px solid #cbd5e1;">
+                Kayıtlı herhangi bir hasta/vaka iş emri bulunmamaktadır.
+              </td>
+            </tr>
+          `;
+        }
       } else {
         jobs.forEach((j, index) => {
           const dateObj = new Date(j.entry_date || j.created_at);
@@ -2231,33 +2267,41 @@ document.addEventListener('DOMContentLoaded', () => {
               </td>
             </tr>
           </table>
-
+ 
           <!-- KLİNİK BİLGİSİ -->
           <div style="margin-bottom: 20px;">
             <h2 style="margin: 0 0 8px 0; font-size: 16px; color: #0f172a; text-transform: uppercase;">MÜŞTERİ / KLİNİK: ${doc.name}</h2>
             ${doc.phone ? `<div style="font-size: 12px; color: #475569;"><strong>Telefon:</strong> ${doc.phone}</div>` : ''}
             ${doc.email ? `<div style="font-size: 12px; color: #475569;"><strong>E-Posta:</strong> ${doc.email}</div>` : ''}
           </div>
-
+ 
           <!-- BİLGİ ÖZET KUTULARI -->
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
             <tr>
-              <td style="width: 33%; padding-right: 10px;">
+              ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? `
+              <td style="width: 25%; padding-right: 8px;">
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Toplam İş Borcu (${periodTitle})</div>
-                  <div style="font-size: 16px; font-weight: bold; color: #0f172a;">${docTotalDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                  <div style="font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Devreden Bakiye</div>
+                  <div style="font-size: 14px; font-weight: bold; color: ${devredenBakiye >= 0 ? '#0f172a' : '#15803d'};">${devredenBakiye.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
-              <td style="width: 33%; padding: 0 5px;">
+              ` : ''}
+              <td style="width: ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? '25%' : '33%'}; padding-right: ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? '4px' : '10px'};">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                  <div style="font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">Toplam İş Borcu</div>
+                  <div style="font-size: 14px; font-weight: bold; color: #0f172a;">${docTotalDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</div>
+                </div>
+              </td>
+              <td style="width: ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? '25%' : '33%'}; padding: 0 4px;">
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Tahsil Edilen Toplam (${periodTitle})</div>
-                  <div style="font-size: 16px; font-weight: bold; color: #15803d;">${docTotalPaid.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                  <div style="font-size: 9px; text-transform: uppercase; color: #166534; font-weight: bold; margin-bottom: 4px;">Tahsil Edilen Toplam</div>
+                  <div style="font-size: 14px; font-weight: bold; color: #15803d;">${docTotalPaid.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
-              <td style="width: 33%; padding-left: 10px;">
+              <td style="width: ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? '25%' : '33%'}; padding-left: ${typeof selectedCariMonth !== 'undefined' && selectedCariMonth !== 'all' ? '4px' : '10px'};">
                 <div style="background: ${docBalance > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${docBalance > 0 ? '#fecaca' : '#bbf7d0'}; border-radius: 8px; padding: 12px; text-align: center;">
-                  <div style="font-size: 10px; text-transform: uppercase; color: ${docBalance > 0 ? '#991b1b' : '#166534'}; font-weight: bold; margin-bottom: 4px;">Kalan Mutabakat Bakiyesi</div>
-                  <div style="font-size: 16px; font-weight: bold; color: ${docBalance > 0 ? '#b91c1c' : '#15803d'};">${docBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</div>
+                  <div style="font-size: 9px; text-transform: uppercase; color: ${docBalance > 0 ? '#991b1b' : '#166534'}; font-weight: bold; margin-bottom: 4px;">Kalan Mutabakat Bakiyesi</div>
+                  <div style="font-size: 14px; font-weight: bold; color: ${docBalance > 0 ? '#b91c1c' : '#15803d'};">${docBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</div>
                 </div>
               </td>
             </tr>
